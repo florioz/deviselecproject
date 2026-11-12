@@ -10,20 +10,56 @@ import android.widget.Toast;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
+    private static CatalogUpdater catalogUpdater;
+    private ValueCallback<Uri[]> logoCallback;
     private WebView web, printWeb;
     private String backup;
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        if (catalogUpdater == null) {
+            try (java.io.InputStream input = getAssets().open("catalog-123elec.json")) {
+                java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+                byte[] buffer = new byte[16384];
+                int count;
+                while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+                catalogUpdater = new CatalogUpdater(getFilesDir(), output.toString("UTF-8"), null);
+            } catch (Exception e) { throw new IllegalStateException("Catalogue embarqué inaccessible", e); }
+        }
         web = new WebView(this);
         web.getSettings().setJavaScriptEnabled(true);
         web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setAllowFileAccess(false);
-        web.getSettings().setAllowContentAccess(false);
+        web.getSettings().setAllowContentAccess(true);
         web.addJavascriptInterface(new Bridge(), "Android");
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                if (logoCallback != null) logoCallback.onReceiveValue(null);
+                logoCallback = callback;
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("image/*")
+                    .addCategory(Intent.CATEGORY_OPENABLE)
+                    .putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/png", "image/jpeg", "image/webp"});
+                try { startActivityForResult(intent, 3); }
+                catch (Exception error) {
+                    logoCallback.onReceiveValue(null);
+                    logoCallback = null;
+                    Toast.makeText(MainActivity.this, "Aucun sélecteur d’images disponible", Toast.LENGTH_LONG).show();
+                }
+                return true;
+            }
+        });
         web.setWebViewClient(new WebViewClient() {
             @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
                 if ("https".equals(req.getUrl().getScheme()) && "deviselec.local".equals(req.getUrl().getHost())) {
                     String path = req.getUrl().getPath();
+                    try {
+                        if ("/catalog-123elec.json".equals(path)) {
+                            return new WebResourceResponse("application/json", "UTF-8", catalogUpdater.openCatalog());
+                        }
+                        if ("/catalog-status.json".equals(path)) {
+                            return new WebResourceResponse("application/json", "UTF-8", new java.io.ByteArrayInputStream(
+                                catalogUpdater.status().getBytes(StandardCharsets.UTF_8)));
+                        }
+                    } catch (Exception error) { return new WebResourceResponse("text/plain", "UTF-8", null); }
                     String asset;
                     String mime;
                     switch (path) {
@@ -52,6 +88,8 @@ public class MainActivity extends Activity {
         web.loadUrl("https://deviselec.local/");
     }
     class Bridge {
+        @JavascriptInterface public void updateCatalog() { catalogUpdater.start(); }
+        @JavascriptInterface public void cancelCatalogUpdate() { catalogUpdater.cancel(); }
         @JavascriptInterface public void product(String url) {
             Uri uri = Uri.parse(url);
             if (!"https".equals(uri.getScheme()) || !"www.123elec.com".equals(uri.getHost())) return;
@@ -83,6 +121,14 @@ public class MainActivity extends Activity {
     }
     @Override protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
+        if (request == 3) {
+            if (logoCallback != null) {
+                Uri uri = result == RESULT_OK && data != null ? data.getData() : null;
+                logoCallback.onReceiveValue(uri != null && "content".equals(uri.getScheme()) ? new Uri[]{uri} : null);
+                logoCallback = null;
+            }
+            return;
+        }
         if (result != RESULT_OK || data == null) return;
         try {
             Uri uri = data.getData();
@@ -98,5 +144,9 @@ public class MainActivity extends Activity {
                 }
             }
         } catch(Exception e) { Toast.makeText(this,"Impossible de traiter le fichier",Toast.LENGTH_LONG).show(); }
+    }
+    @Override protected void onDestroy() {
+        if (logoCallback != null) { logoCallback.onReceiveValue(null); logoCallback = null; }
+        super.onDestroy();
     }
 }

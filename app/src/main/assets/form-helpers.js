@@ -61,6 +61,7 @@ function addPaymentChoices() {
 }
 
 function attachCompanyHelpers() {
+    setupLogoInput();
     addDurationChoices();
     addPaymentChoices();
     addSuggestions($('f-legal'), [
@@ -70,6 +71,64 @@ function attachCompanyHelpers() {
     $('f-address').autocomplete = 'street-address';
     $('f-email').autocomplete = 'email';
     $('f-phone').autocomplete = 'tel';
+}
+
+async function normalizeLogo(file) {
+    if (file.size > 20 * 1024 * 1024) throw new Error('Choisissez une image de moins de 20 Mo.');
+    if (file.type && !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+        throw new Error('Choisissez une image PNG, JPEG ou WebP.');
+    }
+    const url = URL.createObjectURL(file);
+    try {
+        const image = new Image();
+        await new Promise((resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = () => reject(new Error('Image illisible. Essayez un autre PNG, JPEG ou WebP.'));
+            image.src = url;
+        });
+        let maximum = 900;
+        const canvas = document.createElement('canvas');
+        const mime = file.type === 'image/jpeg' ? 'image/jpeg' : 'image/png';
+        while (maximum >= 100) {
+            const scale = Math.min(1, maximum / Math.max(image.naturalWidth, image.naturalHeight));
+            canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+            canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+            const result = canvas.toDataURL(mime, 0.86);
+            if (result.length <= 450000) return result;
+            maximum = Math.floor(maximum * 0.75);
+        }
+        throw new Error('Cette image est trop complexe. Essayez un logo plus petit.');
+    } finally {
+        URL.revokeObjectURL(url);
+    }
+}
+
+function setupLogoInput() {
+    const form = $('companyForm');
+    const input = $('logoInput');
+    form.logoPromise = null;
+    const preview = document.createElement('div');
+    preview.id = 'logoPreview';
+    preview.setAttribute('role', 'status');
+    input.after(preview);
+    input.onchange = () => {
+        const file = input.files[0];
+        if (!file) { form.logoPromise = null; preview.textContent = ''; return; }
+        preview.textContent = 'Préparation du logo…';
+        const remove = form.elements.removeLogo;
+        if (remove) remove.checked = false;
+        const task = normalizeLogo(file).then(data => {
+            if (form.logoPromise === task) {
+                preview.innerHTML = `<img src="${data}" alt="Aperçu du logo sélectionné" style="max-width:180px;max-height:90px;margin-top:12px"><p class="muted">Logo prêt. Enregistrez l’entreprise pour le conserver.</p>`;
+            }
+            return data;
+        }).catch(error => {
+            if (form.logoPromise === task) preview.textContent = error.message;
+            return null;
+        });
+        form.logoPromise = task;
+    };
 }
 
 function attachQuoteHelpers() {

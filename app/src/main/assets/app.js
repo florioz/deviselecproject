@@ -132,50 +132,52 @@ function renderCompany() {
         [0, "0 %"],
       ],
       c.vat ?? 20,
-    )}${field("validity", "Validité du devis (jours)", c.validity ?? 30, "number", 'min="1" max="365" required')}${area("terms", "Conditions de paiement et d’exécution", c.terms || "Acompte de 30 % à la commande. Solde à la réception des travaux. Planning à convenir avec le client.")}${area("vatNote", "Mention TVA (si nécessaire)", c.vatNote)}<div class="full"><label>Logo (PNG/JPEG, 500 Ko maximum)</label><input id="logoInput" type="file" accept="image/png,image/jpeg">${c.logo ? `<img src="${esc(c.logo)}" alt="Logo" style="max-height:65px;margin-top:10px"><label><input type="checkbox" name="removeLogo" style="width:auto;min-height:0"> Retirer le logo</label>` : ""}</div></div><button type="submit">Enregistrer l’entreprise</button></form>`;
+    )}${field("validity", "Validité du devis (jours)", c.validity ?? 30, "number", 'min="1" max="365" required')}${area("terms", "Conditions de paiement et d’exécution", c.terms || "Acompte de 30 % à la commande. Solde à la réception des travaux. Planning à convenir avec le client.")}${area("vatNote", "Mention TVA (si nécessaire)", c.vatNote)}<div class="full"><label>Logo (PNG, JPEG ou WebP)</label><input id="logoInput" type="file" accept="image/png,image/jpeg,image/webp">${c.logo ? `<img src="${esc(c.logo)}" alt="Logo" style="max-height:65px;margin-top:10px"><label><input type="checkbox" name="removeLogo" style="width:auto;min-height:0"> Retirer le logo</label>` : ""}</div></div><button type="submit">Enregistrer l’entreprise</button></form>`;
   $("newCompany").onclick = () => {
     db.active = null;
     renderCompany();
   };
   $("companyForm").onsubmit = async (e) => {
     e.preventDefault();
-    let values = Object.fromEntries(new FormData(e.target));
-    let logo = c.logo || "";
-    const file = $("logoInput").files[0];
-    if (file) {
-      if (
-        file.size > 500000 ||
-        !["image/png", "image/jpeg"].includes(file.type)
-      ) {
-        alert("Choisissez une image PNG ou JPEG de moins de 500 Ko.");
-        return;
+    const form = e.target;
+    if (form.dataset.saving) return;
+    form.dataset.saving = "true";
+    const submitButton = form.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    try {
+      let values = Object.fromEntries(new FormData(e.target));
+      let logo = c.logo || "";
+      const file = $("logoInput").files[0];
+      if (file) {
+        logo = await $("companyForm").logoPromise;
+        if (!logo) {
+          toast("Choisissez une image lisible pour le logo");
+          return;
+        }
       }
-      logo = await new Promise((resolve, reject) => {
-        let reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
-    if (values.removeLogo) logo = "";
-    let next = {
-      ...values,
-      id: c.id || uid(),
-      logo,
-      rate: num(values.rate),
-      markup: num(values.markup),
-      vat: num(values.vat),
-      validity: num(values.validity),
-      nextNumber: c.nextNumber || 1,
-    };
-    delete next.removeLogo;
-    if (c.id)
-      db.companies = db.companies.map((x) => (x.id === c.id ? next : x));
-    else db.companies.push(next);
-    db.active = next.id;
-    if (save()) {
-      toast("Entreprise enregistrée");
-      render();
+      if (values.removeLogo) logo = "";
+      let next = {
+        ...values,
+        id: c.id || uid(),
+        logo,
+        rate: num(values.rate),
+        markup: num(values.markup),
+        vat: num(values.vat),
+        validity: num(values.validity),
+        nextNumber: c.nextNumber || 1,
+      };
+      delete next.removeLogo;
+      if (c.id)
+        db.companies = db.companies.map((x) => (x.id === c.id ? next : x));
+      else db.companies.push(next);
+      db.active = next.id;
+      if (save()) {
+        toast("Entreprise enregistrée");
+        render();
+      }
+    } finally {
+      delete form.dataset.saving;
+      submitButton.disabled = false;
     }
   };
   attachCompanyHelpers(c);
@@ -462,7 +464,7 @@ function lineModal(index, source) {
 }
 function renderSettings() {
   $("main").innerHTML =
-    `<h1>Mes données</h1><section class="card"><h2>Stockage local</h2><p>Les profils, catalogues et devis sont conservés sur ce téléphone. Exportez régulièrement une sauvegarde et avant de désinstaller l’application.</p><p class="muted">${db.companies.length} entreprise(s) · ${db.quotes.length} devis · ${db.catalog.length} référence(s)</p><div class="actions"><button id="backup">Exporter la sauvegarde</button><button id="restore" class="secondary">Restaurer</button></div></section><section class="card"><h2>Deviselec · 0.2.0</h2><p class="muted">Profils d’entreprise locaux : pas de compte en ligne ni de synchronisation entre téléphones dans cette version. Le PDF s’enregistre depuis la fenêtre Android « Enregistrer au format PDF ».</p></section>`;
+    `<h1>Mes données</h1><section class="card"><h2>Stockage local</h2><p>Les profils, catalogues et devis sont conservés sur ce téléphone. Exportez régulièrement une sauvegarde et avant de désinstaller l’application.</p><p class="muted">${db.companies.length} entreprise(s) · ${db.quotes.length} devis · ${db.catalog.length} référence(s)</p><div class="actions"><button id="backup">Exporter la sauvegarde</button><button id="restore" class="secondary">Restaurer</button></div></section><section class="card"><h2>Deviselec · 0.3.0</h2><p class="muted">Profils d’entreprise locaux : pas de compte en ligne ni de synchronisation entre téléphones dans cette version. Le PDF s’enregistre depuis la fenêtre Android « Enregistrer au format PDF ».</p></section>`;
   $("backup").onclick = () => {
     if (window.Android) Android.backup(JSON.stringify(db));
     else {

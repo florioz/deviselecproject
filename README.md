@@ -4,7 +4,7 @@ Application Android 8 et versions suivantes. Fonctionne hors connexion, sans com
 
 ## Installer
 
-Le fichier `livraison/Deviselec-0.2.0-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
+Le fichier `livraison/Deviselec-0.3.0-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
 
 1. Créer un profil dans **Entreprise** : identité, adresse, logo, tarifs, TVA et conditions.
 2. Dans **Catalogue**, rechercher une référence 123elec par mots, référence ou EAN. Choisir une famille et une marque, enregistrer ses favoris ou personnaliser ses prix.
@@ -31,7 +31,15 @@ La conversion des prix publics TTC en coûts d’achat HT utilise une TVA de **2
 
 Les familles sont attribuées automatiquement d’après les désignations. La personnalisation d’une référence permet de corriger la famille, la marque ou le coût pour l’entreprise active. Les favoris sont propres à l’entreprise. Chaque devis conserve le prix et les informations de la référence au moment de son ajout.
 
-L’ouverture de **Fiche 123elec** utilise le navigateur du téléphone. Le catalogue de l’application est un relevé embarqué daté. Les personnalisations, favoris et devis sont conservés dans la sauvegarde JSON. Le catalogue commun est livré avec l’application.
+Dans **Catalogue**, le bouton **Mettre à jour 123elec** récupère les références du plan du site, les prix par famille puis les fiches complémentaires. La progression et un bouton d’annulation sont affichés. Garder l’application ouverte pendant le téléchargement, de préférence en Wi-Fi. Le nouveau catalogue est enregistré dans un fichier local à la fin d’une actualisation exploitable. Une annulation ou un échec de connexion laisse le catalogue précédent disponible. Les pages individuellement indisponibles conservent leurs anciens prix et dates et sont signalées dans le bilan.
+
+Les actualisations conservent les favoris, les personnalisations d’entreprise et les prix déjà enregistrés dans les devis. Le catalogue téléchargé se recharge au lancement et reste consultable hors connexion.
+
+L’ouverture de **Fiche 123elec** utilise le navigateur du téléphone. Les personnalisations, favoris et devis sont conservés dans la sauvegarde JSON. La base fournisseur téléchargée est stockée séparément sur le téléphone et peut être récupérée avec le bouton d’actualisation après une réinstallation.
+
+## Logo
+
+Le champ **Logo** ouvre le sélecteur d’images Android pour choisir un PNG, JPEG ou WebP. L’application affiche un aperçu et redimensionne automatiquement l’image à un maximum de 900 pixels, puis la réduit davantage si nécessaire pour son stockage. La transparence des logos PNG et WebP est conservée. Enregistrer le formulaire **Entreprise** pour conserver le logo. Les fichiers jusqu’à 20 Mo sont acceptés pour le traitement.
 
 Sources publiques utilisées pour le relevé
 
@@ -49,12 +57,12 @@ La version debug convient aux essais. Avant un usage durable, prévoir une clé 
 
 ## Développement et vérification
 
-Coque Android Java et interface HTML/CSS/JavaScript embarquée dans WebView, sans bibliothèque réseau et sans permission Internet. Impression par le service Android et export/import avec le sélecteur de documents système. Aucun serveur nécessaire.
+Coque Android Java et interface HTML/CSS/JavaScript embarquée dans WebView. L’actualisation utilise HTTPS vers `www.123elec.com`, avec deux téléchargements simultanés et une écriture atomique de la base. La permission Internet est utilisée pour cette fonctionnalité. Impression par le service Android et export/import avec le sélecteur de documents système. Aucun serveur nécessaire.
 
 Java 17 ou 21 et SDK Android 36 requis. Définir `ANDROID_HOME` ou `sdk.dir` dans `local.properties`, puis :
 
 ```powershell
-.\gradlew.bat :app:assembleDebug :app:lintDebug
+.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
 ```
 
 Tests fonctionnels dans Chromium (Google Chrome installé au chemin Windows standard) :

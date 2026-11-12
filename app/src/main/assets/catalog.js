@@ -3,6 +3,43 @@
 let supplierCatalog = { products: [], observedAt: '', total: 0, priced: 0 };
 let catalogLoading = true;
 let catalogError = false;
+let catalogUpdateState = { running: false, message: '' };
+let catalogStatusTimer = null;
+let catalogStatusRequest = 0;
+
+async function resumeCatalogUpdates() {
+    if (!window.Android || typeof Android.updateCatalog !== 'function') return;
+    clearTimeout(catalogStatusTimer);
+    const request = ++catalogStatusRequest;
+    try {
+        const response = await fetch('catalog-status.json', { cache: 'no-store' });
+        if (!response.ok) throw new Error('État indisponible');
+        const state = await response.json();
+        if (request !== catalogStatusRequest) return;
+        const previous = catalogUpdateState.running;
+        catalogUpdateState = state;
+        if (previous && !catalogUpdateState.running && catalogUpdateState.updated > 0) await initializeCatalog();
+    } catch (error) {
+        if (request !== catalogStatusRequest) return;
+        catalogUpdateState = { ...catalogUpdateState, message: 'Lecture de la progression interrompue. Réessayez.' };
+    }
+    refreshCatalogUpdatePanel();
+    if (catalogUpdateState.running) catalogStatusTimer = setTimeout(resumeCatalogUpdates, 1000);
+}
+
+function refreshCatalogUpdatePanel() {
+    if (!$('catalogUpdateMessage')) return;
+    const state = catalogUpdateState;
+    $('catalogUpdateMessage').textContent = state.message || 'Actualisez les références et prix depuis 123elec.';
+    $('updateSupplier').disabled = Boolean(state.running) || !window.Android || typeof Android.updateCatalog !== 'function';
+    $('cancelSupplierUpdate').hidden = !state.running;
+    $('catalogProgress').hidden = !state.running;
+    if (state.total > 0) {
+        $('catalogProgress').max = state.total;
+        $('catalogProgress').value = state.done || 0;
+        $('catalogUpdateMessage').textContent += ` ${state.done || 0} / ${state.total} pages · ${state.updated || 0} prix actualisés`;
+    } else $('catalogProgress').removeAttribute('value');
+}
 
 function normalizeSearch(value) {
     return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -13,7 +50,7 @@ async function initializeCatalog() {
     catalogLoading = true;
     catalogError = false;
     try {
-        const response = await fetch('catalog-123elec.json');
+        const response = await fetch('catalog-123elec.json', { cache: 'no-store' });
         if (!response.ok) throw new Error('Catalogue indisponible');
         const data = await response.json();
         if (!Array.isArray(data.products)) throw new Error('Catalogue invalide');
@@ -70,14 +107,36 @@ function renderCatalog() {
             <button id="newProduct">+ Ma référence</button>
         </div>
         <p class="muted" id="supplierInfo"></p>
+        <section class="card">
+            <h2>Actualiser 123elec</h2>
+            <p class="muted">Le téléchargement complet peut prendre plusieurs minutes. Gardez l’application ouverte, de préférence en Wi-Fi.</p>
+            <p id="catalogUpdateMessage" class="muted" role="status" aria-live="polite"></p>
+            <progress id="catalogProgress" style="width:100%" hidden></progress>
+            <div class="actions"><button type="button" id="updateSupplier">Mettre à jour 123elec</button>
+                <button type="button" class="secondary" id="cancelSupplierUpdate" hidden>Annuler</button></div>
+        </section>
         <section class="card" id="catalogPage"></section>`;
+    $('updateSupplier').onclick = () => {
+        catalogUpdateState = { running: true, message: 'Connexion à 123elec…', done: 0, total: 0, updated: 0 };
+        catalogStatusRequest++;
+        clearTimeout(catalogStatusTimer);
+        refreshCatalogUpdatePanel();
+        Android.updateCatalog();
+        catalogStatusTimer = setTimeout(resumeCatalogUpdates, 100);
+    };
+    $('cancelSupplierUpdate').onclick = () => {
+        Android.cancelCatalogUpdate();
+        catalogUpdateState.message = 'Annulation en cours…';
+        refreshCatalogUpdatePanel();
+    };
+    refreshCatalogUpdatePanel();
     $('newProduct').onclick = () => {
         if (!company()) { tab = 'company'; render(); return; }
         catalogModal();
     };
     const date = supplierCatalog.observedAt ? new Date(supplierCatalog.observedAt + 'T12:00:00').toLocaleDateString('fr-FR') : '';
     $('supplierInfo').textContent = catalogLoading ? 'Chargement du catalogue embarqué…' :
-        `${supplierCatalog.total.toLocaleString('fr-FR')} références 123elec · ${supplierCatalog.priced.toLocaleString('fr-FR')} prix relevés le ${date}. Prix d’achat HT indicatifs, hors livraison.`;
+        `${supplierCatalog.total.toLocaleString('fr-FR')} références 123elec · ${supplierCatalog.priced.toLocaleString('fr-FR')} prix renseignés · Catalogue du ${date}. Chaque prix conserve sa date de relevé. Achat HT indicatif, hors livraison.`;
     mountCatalogBrowser($('catalogPage'), false);
 }
 

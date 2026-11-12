@@ -5,11 +5,15 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 (async()=>{
  const assets=path.join(__dirname,'../app/src/main/assets');
+ let updateState={running:false,message:'Prêt'};
+ let updatedCatalog=null;
+ let updateMode='success';
  const server=http.createServer((req,res)=>{
   const name=req.url==='/'?'index.html':req.url.slice(1);
+  if(name==='catalog-status.json'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify(updateState));return;}
   if(!['index.html','app.js','catalog.js','form-helpers.js','catalog-123elec.json'].includes(name)){res.writeHead(404).end();return;}
   const type=name.endsWith('.js')?'application/javascript':name.endsWith('.json')?'application/json':'text/html';
-  res.setHeader('Content-Type',type+'; charset=utf-8');res.end(fs.readFileSync(path.join(assets,name)));
+  res.setHeader('Content-Type',type+'; charset=utf-8');res.end(name==='catalog-123elec.json'&&updatedCatalog?JSON.stringify(updatedCatalog):fs.readFileSync(path.join(assets,name)));
  });
  await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
@@ -28,7 +32,19 @@ const path = require('node:path');
  assert.equal(await page.locator('#f-validity').inputValue(),'60');
  await page.locator('#paymentChoice').selectOption('40');
  assert.match(await page.locator('#f-terms').inputValue(),/40 %/);
+ const largeLogo=await page.evaluate(()=>{
+  const canvas=document.createElement('canvas');canvas.width=1600;canvas.height=1000;
+  const ctx=canvas.getContext('2d'),pixels=ctx.createImageData(1600,1000);
+  let seed=123456;
+  for(let i=0;i<pixels.data.length;i+=4){seed=(seed*1664525+1013904223)>>>0;pixels.data[i]=seed&31;pixels.data[i+1]=100+(seed>>>8&63);pixels.data[i+2]=80+(seed>>>16&63);pixels.data[i+3]=255;}
+  ctx.putImageData(pixels,0,0);ctx.fillStyle='white';ctx.font='bold 200px sans-serif';ctx.fillText('DEVISELEC',180,560);
+  return canvas.toDataURL('image/png').split(',')[1];
+ });
+ const logoBuffer=Buffer.from(largeLogo,'base64');assert.ok(logoBuffer.length>500000);
+ await page.locator('#logoInput').setInputFiles({name:'logo-grand.png',mimeType:'image/png',buffer:logoBuffer});
+ await page.waitForFunction(()=>document.querySelector('#logoPreview img'));
  await page.getByRole('button',{name:'Enregistrer l’entreprise',exact:true}).click();
+ assert.ok(await page.evaluate(()=>company().logo.startsWith('data:image/png;base64,')&&company().logo.length<=450000));
  await page.getByRole('button',{name:'Mes devis',exact:true}).click();
  await page.getByRole('button',{name:'+ Créer un devis',exact:true}).click();
  await page.locator('#f-client').fill('Client de démonstration');
@@ -146,6 +162,28 @@ const path = require('node:path');
  const prices=await page.locator('.catalog-product .row>strong').allTextContents();
  const numeric=prices.map(text=>Number(text.split('€')[0].replace(/\s/g,'').replace(',','.')));
  assert.ok(numeric.every((value,index)=>value>=10&&value<=100&&(index===0||value>=numeric[index-1])));
+ await page.exposeFunction('startMockUpdate',()=>{
+  updateState={running:true,message:'Actualisation…',done:1,total:2,updated:0};
+  if(updateMode==='success')setTimeout(()=>{
+   updatedCatalog=JSON.parse(fs.readFileSync(path.join(assets,'catalog-123elec.json'),'utf8'));
+   const product=updatedCatalog.products.find(p=>p.ref==='600335');product.cost=3.5;product.sourceTtc=4.2;product.checked='2026-11-13';
+   updatedCatalog.observedAt='2026-11-13';
+   updateState={running:false,message:'Catalogue enregistré',done:2,total:2,updated:1};
+  },200);
+ });
+ await page.exposeFunction('cancelMockUpdate',()=>{updateState={running:false,message:'Actualisation annulée',updated:0};});
+ await page.evaluate(()=>{window.Android={updateCatalog:()=>window.startMockUpdate(),cancelCatalogUpdate:()=>window.cancelMockUpdate()};renderCatalog();});
+ await page.locator('#updateSupplier').click();
+ await page.waitForFunction(()=>supplierCatalog.products.find(p=>p.ref==='600335').cost===3.5);
+ assert.equal(await page.evaluate(()=>db.quotes[0].lines[2].price),3.24);
+ await page.locator('#companySelect').selectOption(first);
+ assert.equal(await page.evaluate(()=>catalogItems().find(p=>p.ref==='600335').cost),5);
+ updateMode='cancel';
+ await page.locator('#updateSupplier').click();
+ await page.locator('#cancelSupplierUpdate').click();
+ await page.waitForFunction(()=>!catalogUpdateState.running);
+ assert.match(await page.locator('#catalogUpdateMessage').textContent(),/annulée/);
+ assert.equal(await page.evaluate(()=>supplierCatalog.products.find(p=>p.ref==='600335').cost),3.5);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  assert.deepEqual(errors,[]);
  console.log('PASS: création, calcul HT/TVA/remise, sauvegarde, réouverture, isolation entreprises, écran mobile et génération PDF Chromium.');
