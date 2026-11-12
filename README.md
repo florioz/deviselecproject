@@ -1,13 +1,13 @@
-# Deviselec — première version Android
+# Deviselec pour Android
 
 Application Android 8 et versions suivantes. Fonctionne hors connexion, sans compte distant.
 
 ## Installer
 
-Le fichier `livraison/Deviselec-0.1.0-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande.
+Le fichier `livraison/Deviselec-0.2.0-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
 
 1. Créer un profil dans **Entreprise** : identité, adresse, logo, tarifs, TVA et conditions.
-2. Dans **Catalogue**, ajouter les fournitures et prestations habituelles ou importer les trois références 123elec de démarrage.
+2. Dans **Catalogue**, rechercher une référence 123elec par mots, référence ou EAN. Choisir une famille et une marque, enregistrer ses favoris ou personnaliser ses prix.
 3. Dans **Mes devis**, créer un devis, choisir le mode horaire, forfaitaire ou mixte, puis ajouter les lignes.
 4. **Enregistrer** conserve le devis sur ce téléphone. **Générer le PDF** ouvre le service d’impression Android : choisir **Enregistrer au format PDF**, puis le dossier de destination. Le fichier peut ensuite être partagé depuis le gestionnaire de fichiers.
 5. Exporter régulièrement une sauvegarde depuis **Données**. Une désinstallation supprime les données locales.
@@ -18,13 +18,26 @@ Le fichier `livraison/Deviselec-0.1.0-debug.apk` est une version de test signée
 - Matériel avec majoration du coût d’achat HT ; main-d’œuvre horaire ; prestations au forfait ; combinaison possible.
 - Quantités, unités, remise globale et TVA par ligne. Les bases HT remisées sont arrondies par ligne au centime, puis la TVA par taux.
 - Duplication, recherche, suivi manuel des devis et sauvegarde/restauration JSON.
+- Choix de durée, modèles de paiement, reprise d’un client existant, suggestions d’objet et prestations rapides.
+- Catalogue fournisseur partagé hors connexion et personnalisations propres à chaque entreprise.
+- Filtres par famille, marque, type, favoris, bibliothèque, prix et disponibilité relevée. Tri et affichage progressif de 30 résultats.
 - PDF A4 : identité de l’entreprise au moment de la création, logo, client, chantier, lignes, remises, ventilation TVA, conditions et espace de signature.
 
 ## 123elec
 
-Pas d’API ni de synchronisation automatique dans cette version. Le bouton d’import ajoute trois références et des prix publics relevés le **12 novembre 2026** : 600335 (2,99 € TTC), 600801 (1,10 € TTC), 600001 (3,35 € TTC). Conversion HT indicative à 20 %, arrondie au centime. Les prix sont modifiables et ne comprennent pas les frais de livraison. Source et date restent dans le catalogue et les lignes du devis ; les coûts d’achat et majorations ne sont pas imprimés sur le PDF client.
+Le catalogue embarqué contient **6 506 fiches** issues du plan du site public de 123elec, relevées le **12 novembre 2026**. Les prix proviennent des offres EUR publiées dans les données structurées des pages de catégories et des fiches produit. Le fichier `app/src/main/assets/catalog-123elec.json` indique la couverture des prix, les pages consultées et les éventuels échecs de récupération.
 
-Source : https://www.123elec.com/legrand-dooxie-prise-de-courant-2p-t-surface-blanc-600335.html (fiche et produits complémentaires).
+La conversion des prix publics TTC en coûts d’achat HT utilise une TVA de **20 %**, avec arrondi au centime et frais de livraison exclus. Ces prix sont indicatifs et modifiables. Vérifier le conditionnement et le prix applicable sur la fiche fournisseur. Les références sans offre numérique exploitable demandent la saisie d’un prix d’achat avant leur ajout au devis.
+
+Les familles sont attribuées automatiquement d’après les désignations. La personnalisation d’une référence permet de corriger la famille, la marque ou le coût pour l’entreprise active. Les favoris sont propres à l’entreprise. Chaque devis conserve le prix et les informations de la référence au moment de son ajout.
+
+L’ouverture de **Fiche 123elec** utilise le navigateur du téléphone. Le catalogue de l’application est un relevé embarqué daté. Les personnalisations, favoris et devis sont conservés dans la sauvegarde JSON. Le catalogue commun est livré avec l’application.
+
+Sources publiques utilisées pour le relevé
+
+- https://www.123elec.com/media/sitemap/sitemap.xml
+- https://www.123elec.com/gamme-materiel-electrique.html
+- Les autres catégories et fiches produit dont les liens sont conservés dans le catalogue.
 
 ## Limites à connaître
 
@@ -52,3 +65,14 @@ npm test
 ```
 
 Le scénario vérifie création, prix de vente, remise, TVA mixte, sauvegarde après rechargement et isolation entre entreprises. Il produit aussi une capture mobile et un exemple de PDF dans `tmp/`. Ces vérifications ne remplacent pas les essais du service PDF Android sur appareil réel.
+
+Les tests vérifient aussi les favoris, les filtres combinés, le tri des prix, la recherche hors connexion, la reprise d’un client, les modèles de formulaire, la personnalisation par entreprise et la saisie obligatoire des prix manquants.
+
+Pour reconstruire le relevé fournisseur avec Python et `beautifulsoup4`
+
+```powershell
+py tools/import_123elec.py
+py tools/import_123elec.py --details
+```
+
+La récupération utilise deux connexions simultanées et un cache quotidien dans `tmp/123elec`. Les pages en échec sont consignées dans le catalogue.

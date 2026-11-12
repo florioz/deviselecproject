@@ -22,8 +22,19 @@ public class MainActivity extends Activity {
         web.addJavascriptInterface(new Bridge(), "Android");
         web.setWebViewClient(new WebViewClient() {
             @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
-                if (req.getUrl().toString().equals("https://deviselec.local/")) {
-                    try { return new WebResourceResponse("text/html", "UTF-8", getAssets().open("index.html")); }
+                if ("https".equals(req.getUrl().getScheme()) && "deviselec.local".equals(req.getUrl().getHost())) {
+                    String path = req.getUrl().getPath();
+                    String asset;
+                    String mime;
+                    switch (path) {
+                        case "/": asset = "index.html"; mime = "text/html"; break;
+                        case "/app.js": asset = "app.js"; mime = "application/javascript"; break;
+                        case "/catalog.js": asset = "catalog.js"; mime = "application/javascript"; break;
+                        case "/form-helpers.js": asset = "form-helpers.js"; mime = "application/javascript"; break;
+                        case "/catalog-123elec.json": asset = "catalog-123elec.json"; mime = "application/json"; break;
+                        default: return new WebResourceResponse("text/plain", "UTF-8", null);
+                    }
+                    try { return new WebResourceResponse(mime, "UTF-8", getAssets().open(asset)); }
                     catch (Exception e) { return new WebResourceResponse("text/plain", "UTF-8", null); }
                 }
                 return new WebResourceResponse("text/plain", "UTF-8", null);
@@ -41,6 +52,14 @@ public class MainActivity extends Activity {
         web.loadUrl("https://deviselec.local/");
     }
     class Bridge {
+        @JavascriptInterface public void product(String url) {
+            Uri uri = Uri.parse(url);
+            if (!"https".equals(uri.getScheme()) || !"www.123elec.com".equals(uri.getHost())) return;
+            runOnUiThread(() -> {
+                try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); }
+                catch (Exception e) { Toast.makeText(MainActivity.this, "Aucun navigateur disponible", Toast.LENGTH_SHORT).show(); }
+            });
+        }
         @JavascriptInterface public void pdf(String html, String name) { runOnUiThread(() -> {
             if (printWeb != null) printWeb.destroy();
             printWeb = new WebView(MainActivity.this);
