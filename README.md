@@ -12,7 +12,7 @@ Le sélecteur de logo et l’aperçu des devis sont accessibles dans le navigate
 
 ### Application Android
 
-Le fichier `livraison/Deviselec-0.4.0-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
+Le fichier `livraison/Deviselec-0.5.0-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
 
 1. Créer un profil dans **Entreprise** : identité, adresse, logo, tarifs, TVA et conditions.
 2. Dans **Clients**, enregistrer les coordonnées des clients de l’entreprise. Les clients des anciens devis sont repris automatiquement dans ce carnet.
@@ -43,6 +43,18 @@ Les familles sont attribuées automatiquement d’après les désignations. La p
 L’arbre de sélection classe les équipements d’après leurs familles et désignations. Les photos de 6 506 références sont indexées depuis le plan du site public de 123elec. **38 photos représentatives** sont embarquées pour naviguer hors connexion. Les autres photos sont téléchargées à la demande. Sur Android, elles sont mises en cache sur le téléphone dans une limite de 60 Mo. Une référence reste sélectionnable lorsque sa photo est indisponible. Les budgets de l’étape Matériel portent sur les prix de vente HT avec la majoration de l’entreprise. L’onglet Catalogue affiche les coûts d’achat HT.
 
 Les recommandations proviennent des favoris et de l’historique local des devis de l’entreprise. Les anciens devis conservent leurs prix et leurs coordonnées. Modifier une fiche Client permet de préparer les futurs devis avec les nouvelles coordonnées.
+
+Le volet **Favoris et équipements déjà utilisés** est replié par défaut. Son état est mémorisé pour chaque entreprise et sa hauteur déployée est limitée.
+
+La sélection d’un client dans un devis ouvre une recherche par nom, e-mail, téléphone ou ville. Les résultats sont affichés par groupes de 30, avec le client actuel et les clients utilisés mis en avant.
+
+### Références similaires
+
+Sur une fiche équipée d’informations exploitables, **Références similaires** choisit ce produit comme référence de comparaison. Les critères cochés sont affichés et modifiables. Pour les prises de courant, les critères essentiels disponibles sont sélectionnés initialement parmi les pôles, l’intensité, l’assemblage, la pose, les postes, les prises intégrées et le conditionnement. Une prise à l’unité, une double prise et un lot restent ainsi distincts dans la comparaison initiale. Couleur, tension, protection IP et bornes peuvent préciser la recherche. Les différences de finition ou de protection restent visibles sur les résultats. Les références se trient par prix HT ou marque et les filtres de marque et de budget restent disponibles.
+
+La comparaison conserve uniquement les candidats dont les critères cochés sont renseignés et égaux à ceux de la référence. Elle ne modifie pas la sélection du devis. Les dimensions et la compatibilité de gamme restent à vérifier dans les fiches fournisseur.
+
+Les profils livrés dans `equipment-specs.json` utilisent les libellés du catalogue et, pour **341 fiches de prises**, les caractéristiques détaillées des pages publiques 123elec. Les attributs manquants, contradictoires ou non identifiables restent inconnus. Les profils techniques sont fournis avec cette version de l’application. Les actualisations du catalogue conservent les dates des prix indépendamment de ces profils.
 
 Dans **Catalogue**, le bouton **Mettre à jour 123elec** récupère les références du plan du site, les prix par famille puis les fiches complémentaires. La progression et un bouton d’annulation sont affichés. Garder l’application ouverte pendant le téléchargement, de préférence en Wi-Fi. Le nouveau catalogue est enregistré dans un fichier local à la fin d’une actualisation exploitable. Une annulation ou un échec de connexion laisse le catalogue précédent disponible. Les pages individuellement indisponibles conservent leurs anciens prix et dates et sont signalées dans le bilan.
 
@@ -99,3 +111,5 @@ py tools/import_123elec.py --details
 La récupération utilise deux connexions simultanées et un cache quotidien dans `tmp/123elec`. Les pages en échec sont consignées dans le catalogue.
 
 Pour reconstruire l’index des photos et les visuels représentatifs, utiliser `py tools/prepare_catalog_images.py`.
+
+Pour reconstruire les profils techniques, utiliser `py tools/prepare_catalog_specs.py`. Le script réutilise les fiches mises en cache et complète les fiches de prises avec deux téléchargements simultanés. Les règles d’extraction se vérifient avec `py tools/test_catalog_specs.py`.

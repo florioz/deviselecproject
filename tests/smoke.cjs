@@ -12,7 +12,7 @@ const path = require('node:path');
     const server = http.createServer((request, response) => {
         const name = new URL(request.url, 'http://localhost').pathname.slice(1) || 'index.html';
         if (name === 'catalog-status.json') { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify(updateState)); return; }
-        const allowed = ['index.html', 'flow.css', 'app.js', 'catalog.js', 'form-helpers.js', 'clients.js', 'equipment.js', 'quote-flow.js', 'catalog-123elec.json', 'equipment-images.json'];
+        const allowed = ['index.html', 'flow.css', 'app.js', 'catalog.js', 'form-helpers.js', 'clients.js', 'equipment.js', 'comparison.js', 'equipment-specs.json', 'quote-flow.js', 'catalog-123elec.json', 'equipment-images.json'];
         if (!allowed.includes(name) && !/^equipment-images\/[a-z0-9-]+\.(jpg|jpeg|png|webp)$/.test(name)) { response.writeHead(404).end(); return; }
         const mime = name.endsWith('.js') ? 'application/javascript' : name.endsWith('.json') ? 'application/json' : name.endsWith('.css') ? 'text/css' : name.endsWith('.html') ? 'text/html' : 'image/jpeg';
         response.setHeader('Content-Type', mime);
@@ -58,6 +58,10 @@ const path = require('node:path');
         await page.locator('#f-email').fill('client@example.fr');
         await page.getByRole('button', { name: 'Enregistrer le client', exact: true }).click();
         const clientId = await page.evaluate(() => db.clients[0].id);
+        await page.evaluate(() => {
+            for (let index = 0; index < 600; index++) db.clients.push({ id:'large-' + index, companyId:db.active, type:'individual',
+                name:'Client échantillon ' + String(index).padStart(4,'0'), address:'12 rue de Lyon, Lyon', email:`client${index}@example.fr`, phone:'06 00 00 ' + String(index).padStart(4,'0') });
+        });
         await page.getByRole('button', { name: 'Mes devis', exact: true }).click();
         await page.locator('#newQuote').click();
         assert.equal(await page.locator('#quoteClient').count(), 0);
@@ -81,12 +85,51 @@ const path = require('node:path');
         assert.equal(await page.evaluate(() => draft.lines[0].price), 3.24);
         await page.locator(`[data-favorite="${source.id}"]`).click();
         assert.ok(await page.evaluate(id => favoriteIds().includes(id), source.id));
+        const socketFacts = await page.evaluate(id => technicalProfiles[id].facts, source.id);
+        assert.equal(socketFacts.type, 'socket'); assert.equal(socketFacts.poles, '2P+T'); assert.equal(socketFacts.amps, '16');
+        await page.evaluate(id => {
+            const source=supplierCatalog.products.find(product=>product.id===id),facts=technicalProfiles[id].facts;
+            for(const [key,brand,cost] of [['match','ZZZ Test',1],['different','AAA Test',0.5],['missing','BBB Test',0.25],['pack','CCC Test',0.2],['double','DDD Test',0.3]]) {
+                supplierCatalog.products.push({...source,id:'compare-'+key,ref:'TEST-'+key,label:'Prise de comparaison '+key,brand,cost});
+                const candidate={...facts}; if(key==='different')candidate.poles='2P'; if(key==='missing')delete candidate.amps;
+                if(key==='pack')candidate.pack='50'; if(key==='double')candidate.outlets='2';
+                technicalProfiles['compare-'+key]={facts:candidate};
+            }
+            renderEditor();
+        },source.id);
+        await page.locator(`[data-compare="${source.id}"]`).click();
+        assert.equal(await page.locator('[data-pick="compare-match"]').count(),1);
+        assert.equal(await page.locator('[data-pick="compare-different"]').count(),0);
+        assert.equal(await page.locator('[data-pick="compare-missing"]').count(),0);
+        assert.equal(await page.locator('[data-pick="compare-pack"]').count(),0);
+        assert.equal(await page.locator('[data-pick="compare-double"]').count(),0);
+        assert.equal(await page.evaluate(()=>draft.lines.length),1);
+        await page.locator('#comparisonCriteria summary').click();
+        await page.locator('[data-criterion="amps"]').uncheck();
+        assert.equal(await page.locator('[data-pick="compare-missing"]').count(),1);
+        await page.locator('[data-criterion="amps"]').check();
+        await page.locator('#comparisonSort').selectOption('brand');
+        const comparisonBrands=await page.locator('.catalog-product>.row:first-of-type>.muted').allTextContents();
+        assert.deepEqual(comparisonBrands,[...comparisonBrands].sort((a,b)=>a.localeCompare(b,'fr')));
+        await page.locator('#catalogBrand').selectOption('ZZZ Test');
+        assert.equal(await page.locator('[data-pick]').count(),1);
+        await page.screenshot({path:path.join(__dirname,'../tmp/comparison-mobile.png'),fullPage:true});
+        await page.locator('#exitComparison').click();
+        await page.locator('#resetFilters').click();
         await page.screenshot({ path: path.join(__dirname, '../tmp/material-selected-mobile.png'), fullPage: true });
         await page.locator('#selectionButton').click();
         assert.equal(await page.locator('.selected-line').count(), 1);
         await page.locator('#closeSelection').click();
         await page.locator('#nextStage').click();
-        await page.locator('#quoteClient').selectOption(clientId);
+        await page.locator('#chooseQuoteClient').click();
+        assert.equal(await page.locator('[data-choose-client]').count(),30);
+        await page.locator('#clientPickerSearch').fill('echantillon 0599 lyon');
+        assert.equal(await page.locator('[data-choose-client]').count(),1);
+        await page.locator('[data-choose-client="large-599"]').click();
+        assert.equal(await page.evaluate(()=>draft.clientId),'large-599');
+        await page.locator('#chooseQuoteClient').click();
+        await page.locator('#clientPickerSearch').fill('client de demonstration');
+        await page.locator(`[data-choose-client="${clientId}"]`).click();
         await page.locator('#createQuoteClient').click();
         await page.locator('#f-name').fill('Deuxième client');
         await page.locator('#f-address').fill('5 rue Nouvelle, Lyon');
@@ -94,7 +137,9 @@ const path = require('node:path');
         assert.equal(await page.evaluate(() => draft.stage), 1);
         assert.equal(await page.evaluate(() => draft.lines[0].qty), 2);
         assert.equal(await page.evaluate(() => draft.client), 'Deuxième client');
-        await page.locator('#quoteClient').selectOption(clientId);
+        await page.locator('#chooseQuoteClient').click();
+        await page.locator('#clientPickerSearch').fill('client de demonstration');
+        await page.locator(`[data-choose-client="${clientId}"]`).click();
         await page.locator('#f-title').fill('Rénovation électrique');
         await page.getByRole('button', { name: 'Conditions et PDF →', exact: true }).click();
         await page.locator('#addReviewLine').click();
@@ -117,6 +162,11 @@ const path = require('node:path');
         await page.locator('[data-stage="0"]').click();
         await page.locator('[data-tree-home]').click();
         assert.ok(await page.locator(`[data-recommend="${source.id}"]`).count() > 0);
+        assert.equal(await page.locator('#recommendedEquipment').evaluate(details=>details.open),false);
+        await page.locator('#recommendedEquipment summary').click();
+        await page.waitForFunction(()=>db.recommendationsExpanded?.[db.active]===true);
+        await page.locator('#recommendedEquipment summary').click();
+        await page.waitForFunction(()=>db.recommendationsExpanded?.[db.active]===false);
         // Direct searches work offline and unknown prices still require entry.
         await page.evaluate(() => supplierCatalog.products.push({ id: 'unknown', label: 'Référence sans prix', ref: 'TEST-NOPRICE', brand: 'TEST', category: 'Protection et tableaux', kind: 'material', unit: 'u', cost: null, sourceTtc: null, checked: '' }));
         await page.getByRole('button', { name: 'Catalogue', exact: true }).click();

@@ -186,6 +186,7 @@ function rememberEquipmentState(browser) {
     treeFamily: browser.treeFamily,
     treeLeaf: browser.treeLeaf,
     showResults: browser.showResults,
+    comparison: browser.comparison,
   };
   for (const id of [
     "catalogSearch",
@@ -213,7 +214,7 @@ function renderEquipmentExplorer(browser) {
   const collection = $("catalogSource").value;
   const showResults = searching || browser.showResults || collection !== "all";
   $("catalogRefinements").hidden = !showResults;
-  $("catalogFamilyField").hidden = Boolean(family);
+  $("catalogFamilyField").hidden = Boolean(family || browser.comparison);
   $("catalogResultSection").hidden = !showResults;
   const representative = (category, pattern) => {
     const matches = browser.items
@@ -287,12 +288,12 @@ function renderEquipmentExplorer(browser) {
           !showResults
             ? `${
                 recommended.length && !family
-                  ? `<section class="frequent-equipment"><h3>Vos favoris et équipements déjà utilisés</h3><div class="recommendation-grid">${recommended
+                  ? `<details id="recommendedEquipment" class="frequent-equipment" ${db.recommendationsExpanded?.[db.active] ? "open" : ""}><summary>Favoris et équipements déjà utilisés <span class="muted">(${recommended.length})</span></summary><div class="recommendation-grid">${recommended
                       .map(
                         (product) =>
                           `<button type="button" class="recommendation" data-recommend="${esc(product.id)}">${equipmentPhoto(product)}<span>${esc(product.label)}</span></button>`,
                       )
-                      .join("")}</div></section>`
+                      .join("")}</div></details>`
                   : ""
               }
             <div class="equipment-tiles">${tiles
@@ -307,6 +308,7 @@ function renderEquipmentExplorer(browser) {
             : ""
         }`;
   const choose = (familyId, leafId = "") => {
+    browser.comparison = null;
     browser.treeFamily = familyId;
     browser.treeLeaf = leafId;
     browser.showResults = Boolean(leafId);
@@ -356,4 +358,14 @@ function renderEquipmentExplorer(browser) {
       };
     });
   wireEquipmentPhotos($("equipmentExplorer"));
+  if ($("recommendedEquipment"))
+    $("recommendedEquipment").ontoggle = (event) => {
+      const expanded = event.target.open;
+      if (Boolean(db.recommendationsExpanded?.[db.active]) === expanded) return;
+      db.recommendationsExpanded = {
+        ...db.recommendationsExpanded,
+        [db.active]: expanded,
+      };
+      save();
+    };
 }

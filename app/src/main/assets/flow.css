@@ -59,6 +59,30 @@ body[data-quote-mode="true"] header select { min-width: 0; }
 .check-label input { width: 20px; min-height: 20px; height: 20px; }
 .conditions-fields { margin-top: 18px; }
 #quoteStage { padding-bottom: 20px; }
+.frequent-equipment { margin: 14px 0 20px; border: 1px solid #dfe7ea; border-radius: 12px; padding: 0 12px; }
+.frequent-equipment summary { cursor: pointer; padding: 13px 0; font-size: 13px; font-weight: 650; }
+.frequent-equipment .recommendation-grid { max-height: 350px; overflow-y: auto; margin-bottom: 12px; }
+.client-picker-results { max-height: 55vh; overflow-y: auto; }
+.client-pick { display: flex; flex-direction: column; gap: 5px; width: 100%; text-align: left; margin: 8px 0; color: #173846; background: #f3f7f8; border: 1px solid #dce6e9; font-weight: 400; }
+.client-pick strong { font-size: 15px; }
+.client-pick span, .client-pick small { white-space: normal; overflow-wrap: anywhere; color: #617781; font-size: 12px; }
+.client-pick[aria-pressed="true"] { border-color: #087f77; background: #e6f4f0; }
+.comparison-panel { border: 1px solid #9fcac3; border-radius: 12px; padding: 14px; margin: 14px 0 20px; background: #f0f9f6; scroll-margin-top: 65px; }
+.comparison-reference { display: flex; gap: 12px; align-items: center; }
+.comparison-reference .product-photo { width: 65px; height: 65px; }
+.comparison-reference h3 { margin: 5px 0; font-size: 14px; }
+.comparison-facts { display: flex; flex-wrap: wrap; gap: 5px; margin: 12px 0; }
+.comparison-facts span { background: white; border: 1px solid #c9dfda; padding: 5px 8px; font-size: 12px; border-radius: 6px; }
+.comparison-panel details summary { font-size: 13px; cursor: pointer; padding: 10px 0; }
+.comparison-checks { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin: 12px 0; }
+.comparison-checks label { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 0; }
+.comparison-checks input { width: 18px; height: 18px; min-height: 18px; flex-shrink: 0; }
+.comparison-controls { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; }
+.comparison-controls > div { flex: 1; min-width: 150px; }
+.catalog-product .compare-button { flex-basis: 100%; text-align: left; padding: 4px 0; font-size: 11px; margin-bottom: 6px; }
+.comparison-card-facts { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 8px; }
+.comparison-card-facts span { font-size: 10px; padding: 4px; background: #eaf4f1; border-radius: 4px; }
+.comparison-card-facts .different-fact { background: #fff1d5; color: #7b5010; }
 @media (max-width: 600px) {
     .equipment-tiles, #catalogResults { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .recommendation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

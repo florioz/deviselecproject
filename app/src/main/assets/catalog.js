@@ -74,6 +74,12 @@ async function initializeCatalog() {
     if (!Array.isArray(data.products)) throw new Error("Catalogue invalide");
     const imageResponse = await fetch("equipment-images.json");
     if (imageResponse.ok) productImages = await imageResponse.json();
+    try {
+      const specsResponse = await fetch("equipment-specs.json");
+      if (specsResponse.ok) technicalProfiles = await specsResponse.json();
+    } catch (profileError) {
+      // Keep the usable catalog and any profiles already loaded.
+    }
     data.products = data.products.map((product) => ({
       ...productImages[product.id],
       ...product,
@@ -245,6 +251,7 @@ function mountCatalogBrowser(container, picker) {
             <button type="button" class="secondary" data-collection="company">Mes références</button>
         </div>
         <div id="equipmentExplorer"></div>
+        <section id="comparisonPanel" class="comparison-panel" hidden></section>
         <div id="catalogRefinements"><div class="grid">
             <div class="field" id="catalogFamilyField"><label for="catalogCategory">Famille</label>
                 <select id="catalogCategory">${filterOptions(
@@ -278,7 +285,7 @@ function mountCatalogBrowser(container, picker) {
                     <option value="">Toutes les disponibilités</option><option value="InStock">En stock au relevé</option>
                 </select></div>
                 <div class="field"><label for="catalogSort">Trier</label><select id="catalogSort">
-                    <option value="relevance">Pertinence</option><option value="name">Désignation A → Z</option>
+                    <option value="relevance">Pertinence</option><option value="name">Désignation A → Z</option><option value="brand">Marque A → Z</option>
                     <option value="priceUp">Prix HT croissant</option><option value="priceDown">Prix HT décroissant</option>
                 </select></div>
                 <div class="field"><label for="catalogMin">Prix HT minimum (€)</label><input id="catalogMin" type="number" min="0" step="0.01"></div>
@@ -319,6 +326,7 @@ function mountCatalogBrowser(container, picker) {
       treeFamily: quoteCatalogState.treeFamily,
       treeLeaf: quoteCatalogState.treeLeaf,
       showResults: quoteCatalogState.showResults,
+      comparison: quoteCatalogState.comparison,
     });
     for (const [id, value] of Object.entries(quoteCatalogState))
       if ($(id)) $(id).value = value;
@@ -360,6 +368,7 @@ function mountCatalogBrowser(container, picker) {
       if (id === "catalogMin" || id === "catalogMax")
         $("catalogBudget").value = "";
       if (id === "catalogCategory") {
+        browser.comparison = null;
         browser.treeFamily = "";
         browser.treeLeaf = "";
         browser.showResults = true;
@@ -371,6 +380,7 @@ function mountCatalogBrowser(container, picker) {
     };
   }
   $("resetFilters").onclick = () => {
+    browser.comparison = null;
     browser.treeFamily = "";
     browser.treeLeaf = "";
     browser.showResults = false;
@@ -399,6 +409,7 @@ function updateBrandChoices(browser) {
   const favorites = new Set(favoriteIds());
   const brands = browser.items
     .filter(({ product }) => {
+      if (!matchesComparison(product, browser)) return false;
       if (!equipmentMatches(product, browser)) return false;
       if (category && category !== product.category) return false;
       if (kind && kind !== product.kind) return false;
@@ -426,6 +437,7 @@ function updateCatalogResults(browser) {
         : item.product.price;
   });
   renderEquipmentExplorer(browser);
+  renderComparisonPanel(browser);
   rememberEquipmentState(browser);
   const query = normalizeSearch($("catalogSearch").value);
   const words = query.split(" ").filter(Boolean);
@@ -448,6 +460,7 @@ function updateCatalogResults(browser) {
     );
   });
   const filtered = browser.items.filter(({ product, search, price }) => {
+    if (!matchesComparison(product, browser)) return false;
     if (!equipmentMatches(product, browser)) return false;
     const known =
       price !== null && price !== undefined && Number.isFinite(Number(price));
@@ -472,6 +485,12 @@ function updateCatalogResults(browser) {
     );
   });
   filtered.sort((a, b) => {
+    if (sort === "brand")
+      return (
+        (a.product.brand || "").localeCompare(b.product.brand || "", "fr") ||
+        (a.price ?? Number.MAX_VALUE) - (b.price ?? Number.MAX_VALUE) ||
+        a.product.label.localeCompare(b.product.label, "fr")
+      );
     if (sort === "priceUp" || sort === "priceDown") {
       if (a.price == null) return b.price == null ? 0 : 1;
       if (b.price == null) return -1;
@@ -518,10 +537,12 @@ function updateCatalogResults(browser) {
             <div class="row"><span class="muted">${esc(product.brand || "Mon entreprise")}${browser.picker ? "" : " · " + esc(product.category || "Mes prestations")}</span>
                 <button type="button" class="favorite-button ${isFavorite ? "selected" : ""}" data-favorite="${id}" aria-pressed="${isFavorite}" aria-label="${isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}">${isFavorite ? "★" : "☆"}</button></div>
             <h3>${esc(product.label)}</h3>
+            ${comparisonCardFacts(product, browser)}
             <p class="muted product-reference">${product.ref ? "Réf. " + esc(product.ref) : esc(product.sku || "")}${!browser.picker && product.sku && product.sku !== product.ref ? " · 123elec " + esc(product.sku) : ""}</p>
             <div class="row"><strong>${known ? money(price) + " HT / " + esc(product.unit || "u") : "Prix à renseigner"}</strong>
                 ${product.checked && !browser.picker ? `<span class="muted">Relevé ${esc(product.checked.split("-").reverse().join("/"))}</span>` : ""}</div>
             <div class="actions">
+                ${comparisonFields(product).length ? `<button type="button" class="text-button compare-button" data-compare="${id}">Références similaires</button>` : ""}
                 ${browser.picker ? (selected ? `<div class="inline-quantity"><button type="button" data-product-minus="${id}" class="secondary" aria-label="Diminuer ${esc(product.label)}">−</button><strong>${selected.qty}</strong><button type="button" data-pick="${id}" aria-label="Augmenter ${esc(product.label)}">+</button></div>` : `<button type="button" data-pick="${id}">Ajouter</button>`) : `<button type="button" class="secondary" data-product="${id}">${product.companyId ? "Modifier" : "Personnaliser"}</button>`}
                 ${product.url && !browser.picker ? `<button type="button" class="text-button" data-link="${id}">Fiche ↗</button>` : ""}
             </div>
@@ -541,6 +562,12 @@ function updateCatalogResults(browser) {
   const find = (id) =>
     browser.items.find((entry) => entry.product.id === id)?.product;
   wireEquipmentPhotos($("catalogResults"));
+  $("catalogResults")
+    .querySelectorAll("[data-compare]")
+    .forEach((button) => {
+      button.onclick = () =>
+        startProductComparison(find(button.dataset.compare), browser);
+    });
   $("catalogResults")
     .querySelectorAll("[data-pick]")
     .forEach((button) => {

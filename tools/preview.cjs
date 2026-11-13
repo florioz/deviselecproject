@@ -12,6 +12,8 @@ const routes = new Map([
     ['/form-helpers.js', ['form-helpers.js', 'application/javascript']],
     ['/clients.js', ['clients.js', 'application/javascript']],
     ['/equipment.js', ['equipment.js', 'application/javascript']],
+    ['/comparison.js', ['comparison.js', 'application/javascript']],
+    ['/equipment-specs.json', ['equipment-specs.json', 'application/json']],
     ['/quote-flow.js', ['quote-flow.js', 'application/javascript']],
     ['/flow.css', ['flow.css', 'text/css']],
     ['/equipment-images.json', ['equipment-images.json', 'application/json']],

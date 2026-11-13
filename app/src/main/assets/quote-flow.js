@@ -89,7 +89,8 @@ function renderMaterialStage() {
 
 function refreshSelectionSummary() {
   if (!$("selectionButton") || !draft) return;
-  $("selectionButton").closest(".selection-bar").hidden = draft.lines.length === 0;
+  $("selectionButton").closest(".selection-bar").hidden =
+    draft.lines.length === 0;
   $("selectionButton").textContent = `Ma sélection (${draft.lines.length})`;
   $("selectionTotal").textContent = money(totals(draft).ttc);
 }
@@ -199,9 +200,8 @@ function renderClientStage() {
   const sameAddress = !draft.site || draft.site === draft.clientAddress;
   $("quoteStage").innerHTML =
     `<form id="quoteForm" class="card"><h2>Pour quel client ?</h2>
-        <div class="field"><label for="quoteClient">Client enregistré *</label>
-            <select id="quoteClient" name="clientId" required><option value="">Choisir un client</option>
-                ${clients.map((client) => `<option value="${esc(client.id)}" ${client.id === selectedId ? "selected" : ""}>${esc(client.name)} · ${esc(client.address)}</option>`).join("")}</select></div>
+        <input id="quoteClient" name="clientId" type="hidden" value="${esc(selectedId)}">
+        <button type="button" id="chooseQuoteClient" class="secondary">${draft.client ? "Changer de client" : "Rechercher un client"}</button>
         <button type="button" id="createQuoteClient" class="text-button">+ Créer un client dans le carnet</button>
         <div id="quoteClientSummary" class="client-summary"></div>
         <h2>Le chantier</h2>${field("title", "Objet du devis *", draft.title, "text", 'required list="quoteSubjects"')}
@@ -215,23 +215,19 @@ function renderClientStage() {
       : "";
   };
   summary();
-  $("quoteClient").onchange = () => {
-    const client = clients.find((item) => item.id === $("quoteClient").value);
-    if (client) {
+  $("chooseQuoteClient").onclick = () =>
+    openClientPicker($("quoteClient").value, (client) => {
+      capture();
       applyClientToQuote(client);
+      $("quoteClient").value = client.id;
+      $("chooseQuoteClient").textContent = "Changer de client";
       if ($("sameClientAddress").checked) {
         draft.site = client.address;
         $("f-site").value = client.address;
       }
-    } else {
-      draft.clientId = "";
-      draft.client = "";
-      draft.clientAddress = "";
-      draft.email = "";
-    }
-    summary();
-    storeQuote(true);
-  };
+      summary();
+      storeQuote(true);
+    });
   $("sameClientAddress").onchange = () => {
     $("siteField").hidden = $("sameClientAddress").checked;
     if ($("sameClientAddress").checked) $("f-site").value = draft.clientAddress;

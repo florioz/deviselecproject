@@ -80,6 +80,8 @@ public class MainActivity extends Activity {
                         case "/form-helpers.js": asset = "form-helpers.js"; mime = "application/javascript"; break;
                         case "/clients.js": asset = "clients.js"; mime = "application/javascript"; break;
                         case "/equipment.js": asset = "equipment.js"; mime = "application/javascript"; break;
+                        case "/comparison.js": asset = "comparison.js"; mime = "application/javascript"; break;
+                        case "/equipment-specs.json": asset = "equipment-specs.json"; mime = "application/json"; break;
                         case "/quote-flow.js": asset = "quote-flow.js"; mime = "application/javascript"; break;
                         case "/flow.css": asset = "flow.css"; mime = "text/css"; break;
                         case "/equipment-images.json": asset = "equipment-images.json"; mime = "application/json"; break;

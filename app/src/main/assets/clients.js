@@ -36,6 +36,78 @@ function companyClients() {
     .sort((a, b) => a.name.localeCompare(b.name, "fr"));
 }
 
+function searchClients(query, clients = companyClients()) {
+  const words = normalizeSearch(query).split(" ").filter(Boolean);
+  return clients.filter((client) => {
+    const text = normalizeSearch(
+      [client.name, client.address, client.email, client.phone].join(" "),
+    );
+    return words.every(
+      (word) => text.includes(word) || text.replace(/ /g, "").includes(word),
+    );
+  });
+}
+
+function openClientPicker(selectedId, choose) {
+  modal(`<h2>Choisir un client</h2><label for="clientPickerSearch">Nom, e-mail, téléphone ou ville</label>
+    <input type="search" id="clientPickerSearch" autocomplete="off" placeholder="Rechercher dans le carnet…">
+    <p id="clientPickerCount" class="muted" role="status" aria-live="polite"></p>
+    <div id="clientPickerResults" class="client-picker-results"></div><div class="actions"><button id="morePickerClients" class="secondary">Afficher 30 clients de plus</button>
+    <button type="button" class="secondary" id="cancelClientPicker">Annuler</button></div>`);
+  let limit = 30;
+  const clients = companyClients();
+  const use = new Map();
+  db.quotes
+    .filter((quote) => quote.companyId === db.active && quote.clientId)
+    .forEach((quote) =>
+      use.set(quote.clientId, (use.get(quote.clientId) || 0) + 1),
+    );
+  function results() {
+    const matches = searchClients($("clientPickerSearch").value, clients).sort(
+      (a, b) =>
+        Number(b.id === selectedId) - Number(a.id === selectedId) ||
+        (use.get(b.id) || 0) - (use.get(a.id) || 0) ||
+        a.name.localeCompare(b.name, "fr"),
+    );
+    $("clientPickerCount").textContent =
+      `${matches.length} client(s) · ${Math.min(limit, matches.length)} affiché(s)`;
+    $("clientPickerResults").innerHTML =
+      matches
+        .slice(0, limit)
+        .map(
+          (
+            client,
+          ) => `<button type="button" class="client-pick" data-choose-client="${esc(client.id)}" aria-pressed="${client.id === selectedId}">
+      <strong>${esc(client.name)}</strong><span>${esc(client.address)}</span><small>${esc([client.email, client.phone].filter(Boolean).join(" · "))}</small></button>`,
+        )
+        .join("") ||
+      '<p class="empty">Aucun client trouvé. Essayez un autre nom, une ville ou un téléphone.</p>';
+    $("morePickerClients").hidden = matches.length <= limit;
+    $("clientPickerResults")
+      .querySelectorAll("[data-choose-client]")
+      .forEach((button) => {
+        button.onclick = () => {
+          const client = clients.find(
+            (item) => item.id === button.dataset.chooseClient,
+          );
+          closeModal();
+          choose(client);
+        };
+      });
+  }
+  $("clientPickerSearch").oninput = () => {
+    limit = 30;
+    results();
+  };
+  $("morePickerClients").onclick = () => {
+    limit += 30;
+    results();
+  };
+  $("cancelClientPicker").onclick = closeModal;
+  results();
+  requestAnimationFrame(() => $("clientPickerSearch")?.focus());
+}
+
 function renderClients() {
   $("main").innerHTML =
     `<div class="row"><h1>Mes clients</h1><button id="newClient">+ Nouveau client</button></div>
