@@ -64,6 +64,7 @@ function closeModal() {
   $("dialog").close();
 }
 function render() {
+  delete document.body.dataset.quoteMode;
   $("companySelect").innerHTML = db.companies.length
     ? db.companies
         .map(
@@ -75,6 +76,7 @@ function render() {
   $("nav").innerHTML = [
     ["quotes", "Mes devis"],
     ["catalog", "Catalogue"],
+    ["clients", "Clients"],
     ["company", "Entreprise"],
     ["settings", "Données"],
   ]
@@ -88,34 +90,32 @@ function render() {
     .forEach((b) => (b.onclick = () => navigate(b.dataset.tab)));
   if (tab === "company") renderCompany();
   else if (tab === "catalog") renderCatalog();
+  else if (tab === "clients") renderClients();
   else if (tab === "settings") renderSettings();
   else if (draft) renderEditor();
   else renderQuotes();
 }
 function navigate(next) {
-  if (
-    draft &&
-    !confirm(
-      "Quitter le devis ? Les modifications non enregistrées seront perdues.",
-    )
-  )
-    return;
+  if (draft) {
+    capture();
+    if (!storeQuote(true)) return;
+  }
   draft = null;
+  clientReturnQuote = null;
   tab = next;
   render();
 }
-$("companySelect").onchange = (e) => {
-  if (
-    draft &&
-    !confirm(
-      "Changer d’entreprise et quitter les modifications non enregistrées ?",
-    )
-  ) {
-    render();
-    return;
+$("companySelect").onchange = (event) => {
+  if (draft) {
+    capture();
+    if (!storeQuote(true)) {
+      render();
+      return;
+    }
   }
-  db.active = e.target.value;
+  db.active = event.target.value;
   draft = null;
+  clientReturnQuote = null;
   save();
   render();
 };
@@ -183,6 +183,7 @@ function renderCompany() {
   attachCompanyHelpers(c);
 }
 function renderQuotes() {
+  delete document.body.dataset.quoteMode;
   const list = db.quotes
     .filter((q) => q.companyId === db.active)
     .sort((a, b) => b.updated.localeCompare(a.updated));
@@ -206,7 +207,7 @@ function renderQuotes() {
         )
         .map(
           (q) =>
-            `<div class="line"><div class="row"><div><strong>${esc(q.client)}</strong><div class="muted">${esc(q.number)} · ${esc(q.title)}</div></div><strong>${money(totals(q).ttc)}</strong></div><div class="actions"><button class="secondary" data-open="${q.id}">Ouvrir</button><button class="secondary" data-copy="${q.id}">Dupliquer</button></div></div>`,
+            `<div class="line"><div class="row"><div><strong>${esc(q.client || "Brouillon sans client")}</strong><div class="muted">${esc(q.number)} · ${esc(q.title)}</div></div><strong>${money(totals(q).ttc)}</strong></div><div class="actions"><button class="secondary" data-open="${q.id}">Ouvrir</button><button class="secondary" data-copy="${q.id}">Dupliquer</button></div></div>`,
         )
         .join("") ||
       '<div class="empty">Vos prochains devis apparaîtront ici.</div>';
@@ -216,6 +217,7 @@ function renderQuotes() {
           draft = structuredClone(
             db.quotes.find((q) => q.id === b.dataset.open),
           );
+          quoteCatalogState = null;
           render();
         }),
     );
@@ -256,6 +258,8 @@ function newQuote(source) {
     company: structuredClone(c),
     updated: new Date().toISOString(),
   });
+  draft.stage = 0;
+  quoteCatalogState = null;
   tab = "quotes";
   render();
 }
@@ -281,109 +285,6 @@ function capture() {
   Object.assign(draft, Object.fromEntries(new FormData($("quoteForm"))));
   draft.discount = num(draft.discount);
   draft.validity = num(draft.validity);
-}
-function renderEditor() {
-  let q = draft,
-    t = totals(q);
-  $("main").innerHTML =
-    `<div class="row"><div><p class="muted">${esc(q.number)}</p><h1>Nouveau chiffrage</h1></div><button id="back" class="secondary">Fermer</button></div><form id="quoteForm"><section class="card"><h2>Client et chantier</h2><div class="grid">${field("client", "Nom du client *", q.client, "text", "required")}${field("email", "E-mail du client", q.email, "email")}${area("clientAddress", "Adresse du client *", q.clientAddress)}${field("title", "Objet du devis *", q.title, "text", "required")}${field("site", "Adresse du chantier", q.site)}${field("date", "Date du devis *", q.date, "date", "required")}${field("validity", "Validité (jours)", q.validity, "number", 'min="1" max="365" required')}${select(
-      "mode",
-      "Mode de tarification",
-      [
-        ["hourly", "Matériel + main-d’œuvre horaire"],
-        ["package", "Forfaits par prestation"],
-        ["mixed", "Mixte : matériel, heures et forfaits"],
-      ],
-      q.mode,
-    )}${select(
-      "status",
-      "Suivi",
-      [
-        ["Brouillon", "Brouillon"],
-        ["Envoyé", "Envoyé"],
-        ["Accepté", "Accepté"],
-        ["Refusé", "Refusé"],
-      ],
-      q.status,
-    )}</div></section><section class="card"><h2>Matériel et prestations</h2><p class="muted">${q.mode === "package" ? "Ajoutez vos prestations avec un prix forfaitaire." : q.mode === "mixed" ? "Combinez librement matériel, heures et prestations." : "Ajoutez les fournitures et les heures de main-d’œuvre."}</p>${q.lines.map((l, i) => `<div class="line"><div class="row"><div><strong>${esc(l.label)}</strong><div class="muted">${l.qty} ${esc(l.unit)} × ${money(l.price)} HT · TVA ${l.vat} %</div>${l.ref ? `<div class="muted">Réf. ${esc(l.ref)}</div>` : ""}</div><strong>${money(round(l.qty * l.price))}</strong></div><div class="actions"><button type="button" class="secondary" data-edit="${i}">Modifier</button><button type="button" class="danger" data-remove="${i}">Retirer</button></div></div>`).join("") || '<p class="empty">Ajoutez votre première ligne.</p>'}<div class="actions"><button id="addLine" type="button">+ Ligne libre</button><button id="fromCatalog" type="button" class="secondary">Depuis le catalogue</button></div></section><section class="card"><h2>Conditions et ajustements</h2>${field("discount", "Remise globale (%)", q.discount, "number", 'min="0" max="100" step="0.1" required')}${area("terms", "Paiement et conditions d’exécution", q.terms)}${area("vatNote", "Mention TVA", q.vatNote)}${area("notes", "Précisions et exclusions", q.notes)}</section><section id="summary" class="card total"></section><div class="actions"><button type="submit">Enregistrer</button><button type="button" id="pdf" class="secondary">Générer le PDF</button></div><p class="muted">Les modifications sont sauvegardées avec le bouton Enregistrer. Les prix du devis restent indépendants du catalogue.</p></form>`;
-  function summary() {
-    const t = totals(draft);
-    $("summary").innerHTML =
-      `<div class="row"><span>Fournitures et prestations HT</span><span>${money(t.base)}</span></div><div class="row"><span>Remise ${draft.discount} %</span><span>− ${money(t.discount)}</span></div><div class="row"><span>Total HT après remise</span><strong>${money(t.ht)}</strong></div><div class="row"><span>TVA</span><span>${money(t.tax)}</span></div><div class="row"><span>Total TTC</span><span class="money">${money(t.ttc)}</span></div>`;
-  }
-  summary();
-  $("quoteForm").onchange = () => {
-    capture();
-    summary();
-  };
-  $("f-mode").onchange = () => {
-    capture();
-    renderEditor();
-  };
-  $("f-discount").oninput = () => {
-    capture();
-    summary();
-  };
-  $("back").onclick = () => navigate("quotes");
-  $("addLine").onclick = () => {
-    capture();
-    lineModal();
-  };
-  $("fromCatalog").onclick = () => {
-    capture();
-    pickCatalog();
-  };
-  document.querySelectorAll("[data-edit]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        capture();
-        lineModal(num(b.dataset.edit));
-      }),
-  );
-  document.querySelectorAll("[data-remove]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        capture();
-        draft.lines.splice(num(b.dataset.remove), 1);
-        renderEditor();
-      }),
-  );
-  $("quoteForm").onsubmit = (e) => {
-    e.preventDefault();
-    capture();
-    storeQuote();
-  };
-  $("pdf").onclick = () => {
-    if (!$("quoteForm").reportValidity()) return;
-    capture();
-    if (!draft.clientAddress.trim()) {
-      alert("Renseignez l’adresse du client avant de générer le PDF.");
-      return;
-    }
-    if (!draft.lines.length) {
-      alert("Ajoutez au moins une ligne.");
-      return;
-    }
-    if (!storeQuote()) return;
-    printQuote(draft);
-  };
-  attachQuoteHelpers();
-}
-function storeQuote() {
-  if (!draft.lines.length) {
-    toast("Ajoutez au moins une ligne");
-    return false;
-  }
-  draft.updated = new Date().toISOString();
-  let existing = db.quotes.findIndex((q) => q.id === draft.id);
-  if (existing < 0) {
-    db.quotes.push(structuredClone(draft));
-    const c = company();
-    c.nextNumber++;
-  } else db.quotes[existing] = structuredClone(draft);
-  if (!save()) return false;
-  toast("Devis enregistré");
-  return true;
 }
 function lineModal(index, source) {
   const c = company(),
@@ -457,14 +358,28 @@ function lineModal(index, source) {
     );
     if (index !== undefined) draft.lines[index] = v;
     else draft.lines.push(v);
+    storeQuote(true);
     closeModal();
     renderEditor();
   };
   attachLineHelpers(l);
+  if (index !== undefined) {
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "danger";
+    remove.textContent = "Retirer la ligne";
+    remove.onclick = () => {
+      draft.lines.splice(index, 1);
+      storeQuote(true);
+      closeModal();
+      renderEditor();
+    };
+    $("lineForm").append(remove);
+  }
 }
 function renderSettings() {
   $("main").innerHTML =
-    `<h1>Mes données</h1><section class="card"><h2>Stockage local</h2><p>Les profils, catalogues et devis sont conservés sur ce téléphone. Exportez régulièrement une sauvegarde et avant de désinstaller l’application.</p><p class="muted">${db.companies.length} entreprise(s) · ${db.quotes.length} devis · ${db.catalog.length} référence(s)</p><div class="actions"><button id="backup">Exporter la sauvegarde</button><button id="restore" class="secondary">Restaurer</button></div></section><section class="card"><h2>Deviselec · 0.3.0</h2><p class="muted">Profils d’entreprise locaux : pas de compte en ligne ni de synchronisation entre téléphones dans cette version. Le PDF s’enregistre depuis la fenêtre Android « Enregistrer au format PDF ».</p></section>`;
+    `<h1>Mes données</h1><section class="card"><h2>Stockage local</h2><p>Les profils, catalogues et devis sont conservés sur ce téléphone. Exportez régulièrement une sauvegarde et avant de désinstaller l’application.</p><p class="muted">${db.companies.length} entreprise(s) · ${db.quotes.length} devis · ${db.catalog.length} référence(s)</p><div class="actions"><button id="backup">Exporter la sauvegarde</button><button id="restore" class="secondary">Restaurer</button></div></section><section class="card"><h2>Deviselec · 0.4.0</h2><p class="muted">Profils d’entreprise locaux : pas de compte en ligne ni de synchronisation entre téléphones dans cette version. Le PDF s’enregistre depuis la fenêtre Android « Enregistrer au format PDF ».</p></section>`;
   $("backup").onclick = () => {
     if (window.Android) Android.backup(JSON.stringify(db));
     else {
@@ -500,6 +415,7 @@ function restoreData(text) {
     if (!confirm("Remplacer toutes les données locales par cette sauvegarde ?"))
       return;
     db = v;
+    initializeClients();
     if (!company()) db.active = db.companies[0]?.id || null;
     if (save()) {
       draft = null;
@@ -517,7 +433,7 @@ function pdfHtml(q) {
     expiry = new Date(date);
   expiry.setDate(date.getDate() + num(q.validity));
   const br = (s) => esc(s).replace(/\n/g, "<br>");
-  return `<!doctype html><html lang="fr"><meta charset="UTF-8"><title>${esc(q.number)}</title><style>@page{size:A4;margin:14mm}body{font:11px Arial,sans-serif;color:#233a46;line-height:1.5}h1{font-size:30px;letter-spacing:2px;color:#087f77;margin:0}h2{font-size:15px;margin:0 0 8px}p{margin:5px 0}.head{width:100%;border-bottom:3px solid #087f77;padding-bottom:16px}.head td{vertical-align:top}.head td:last-child{text-align:right}.logo{max-width:150px;max-height:65px;margin-bottom:8px}.boxes{width:100%;margin:20px 0}.boxes td{width:50%;vertical-align:top;padding:12px;background:#f2f6f7}.lines{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:15px}.lines th{background:#173846;color:white;text-align:left;padding:9px 6px;font-size:10px}.lines td{border-bottom:1px solid #dce5e9;padding:9px 6px;vertical-align:top;overflow-wrap:anywhere}.lines tr{break-inside:avoid}.lines thead{display:table-header-group}.right{text-align:right}.totals{margin:18px 0 18px auto;width:48%;break-inside:avoid}.totals td{padding:5px}.grand{background:#173846;color:white;font-weight:bold;font-size:15px}.section{margin:18px 0;break-inside:avoid}.muted{color:#637984;font-size:10px}.sign{border:1px solid #cddadd;padding:12px;min-height:95px;break-inside:avoid}.footer{border-top:1px solid #cddadd;margin-top:20px;padding-top:9px;font-size:9px;color:#637984;overflow-wrap:anywhere}</style><body><table class="head"><tr><td>${c.logo ? `<img class="logo" src="${esc(c.logo)}"><br>` : ""}<h2>${esc(c.name)}</h2>${br(c.address)}<p>${esc(c.phone)}${c.email ? " · " + esc(c.email) : ""}</p></td><td><h1>DEVIS</h1><strong>${esc(q.number)}</strong><p>Émis le ${date.toLocaleDateString("fr-FR")}</p><p>Valable jusqu’au ${expiry.toLocaleDateString("fr-FR")}</p></td></tr></table><table class="boxes"><tr><td><h2>Client</h2><strong>${esc(q.client)}</strong><br>${br(q.clientAddress)}<p>${esc(q.email)}</p></td><td><h2>Chantier</h2><strong>${esc(q.title)}</strong><p>${br(q.site || q.clientAddress)}</p></td></tr></table><table class="lines"><colgroup><col style="width:43%"><col style="width:10%"><col style="width:9%"><col style="width:14%"><col style="width:9%"><col style="width:15%"></colgroup><thead><tr><th>Désignation</th><th>Qté</th><th>Unité</th><th>P.U. HT</th><th>TVA</th><th>Total HT</th></tr></thead><tbody>${q.lines.map((l) => `<tr><td><strong>${esc(l.label)}</strong>${l.ref ? `<br><span class="muted">Réf. ${esc(l.ref)}</span>` : ""}</td><td>${l.qty}</td><td>${esc(l.unit)}</td><td>${money(l.price)}</td><td>${l.vat} %</td><td class="right">${money(round(l.qty * l.price))}</td></tr>`).join("")}</tbody></table><table class="totals"><tr><td>Sous-total HT</td><td class="right">${money(t.base)}</td></tr>${q.discount ? `<tr><td>Remise ${q.discount} %</td><td class="right">− ${money(t.discount)}</td></tr>` : ""}<tr><td>Total HT</td><td class="right">${money(t.ht)}</td></tr>${Object.entries(
+  return `<!doctype html><html lang="fr"><meta charset="UTF-8"><title>${esc(q.number)}</title><style>@page{size:A4;margin:14mm}body{font:11px Arial,sans-serif;color:#233a46;line-height:1.5}h1{font-size:30px;letter-spacing:2px;color:#087f77;margin:0}h2{font-size:15px;margin:0 0 8px}p{margin:5px 0}.head{width:100%;border-bottom:3px solid #087f77;padding-bottom:16px}.head td{vertical-align:top}.head td:last-child{text-align:right}.logo{max-width:150px;max-height:65px;margin-bottom:8px}.boxes{width:100%;margin:20px 0}.boxes td{width:50%;vertical-align:top;padding:12px;background:#f2f6f7}.lines{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:15px}.lines th{background:#173846;color:white;text-align:left;padding:9px 6px;font-size:10px}.lines td{border-bottom:1px solid #dce5e9;padding:9px 6px;vertical-align:top;overflow-wrap:anywhere}.lines tr{break-inside:avoid}.lines thead{display:table-header-group}.right{text-align:right}.totals{margin:18px 0 18px auto;width:48%;break-inside:avoid}.totals td{padding:5px}.grand{background:#173846;color:white;font-weight:bold;font-size:15px}.section{margin:18px 0;break-inside:avoid}.muted{color:#637984;font-size:10px}.sign{border:1px solid #cddadd;padding:12px;min-height:95px;break-inside:avoid}.footer{border-top:1px solid #cddadd;margin-top:20px;padding-top:9px;font-size:9px;color:#637984;overflow-wrap:anywhere}</style><body><table class="head"><tr><td>${c.logo ? `<img class="logo" src="${esc(c.logo)}"><br>` : ""}<h2>${esc(c.name)}</h2>${br(c.address)}<p>${[c.phone, c.email].filter(Boolean).map(esc).join(' &#183; ')}</p></td><td><h1>DEVIS</h1><strong>${esc(q.number)}</strong><p>Émis le ${date.toLocaleDateString("fr-FR")}</p><p>Valable jusqu’au ${expiry.toLocaleDateString("fr-FR")}</p></td></tr></table><table class="boxes"><tr><td><h2>Client</h2><strong>${esc(q.client)}</strong><br>${br(q.clientAddress)}<p>${esc(q.email)}</p></td><td><h2>Chantier</h2><strong>${esc(q.title)}</strong><p>${br(q.site || q.clientAddress)}</p></td></tr></table><table class="lines"><colgroup><col style="width:43%"><col style="width:10%"><col style="width:9%"><col style="width:14%"><col style="width:9%"><col style="width:15%"></colgroup><thead><tr><th>Désignation</th><th>Qté</th><th>Unité</th><th>P.U. HT</th><th>TVA</th><th>Total HT</th></tr></thead><tbody>${q.lines.map((l) => `<tr><td><strong>${esc(l.label)}</strong>${l.ref ? `<br><span class="muted">Réf. ${esc(l.ref)}</span>` : ""}</td><td>${l.qty}</td><td>${esc(l.unit)}</td><td>${money(l.price)}</td><td>${l.vat} %</td><td class="right">${money(round(l.qty * l.price))}</td></tr>`).join("")}</tbody></table><table class="totals"><tr><td>Sous-total HT</td><td class="right">${money(t.base)}</td></tr>${q.discount ? `<tr><td>Remise ${q.discount} %</td><td class="right">− ${money(t.discount)}</td></tr>` : ""}<tr><td>Total HT</td><td class="right">${money(t.ht)}</td></tr>${Object.entries(
     t.groups,
   )
     .map(

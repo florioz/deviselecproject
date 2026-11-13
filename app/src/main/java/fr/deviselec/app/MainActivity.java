@@ -13,9 +13,11 @@ public class MainActivity extends Activity {
     private static CatalogUpdater catalogUpdater;
     private ValueCallback<Uri[]> logoCallback;
     private WebView web, printWeb;
+    private ProductImageCache productImages;
     private String backup;
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        productImages = new ProductImageCache(getCacheDir());
         if (catalogUpdater == null) {
             try (java.io.InputStream input = getAssets().open("catalog-123elec.json")) {
                 java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
@@ -52,6 +54,15 @@ public class MainActivity extends Activity {
                 if ("https".equals(req.getUrl().getScheme()) && "deviselec.local".equals(req.getUrl().getHost())) {
                     String path = req.getUrl().getPath();
                     try {
+                        if ("/product-image".equals(path)) {
+                            String url = req.getUrl().getQueryParameter("url");
+                            String mime = url != null && url.toLowerCase(java.util.Locale.ROOT).contains(".png") ? "image/png" :
+                                url != null && url.toLowerCase(java.util.Locale.ROOT).contains(".webp") ? "image/webp" : "image/jpeg";
+                            return new WebResourceResponse(mime, null, productImages.open(url));
+                        }
+                        if (path != null && path.matches("/equipment-images/[a-z0-9-]+\\.(jpg|jpeg|png|webp)")) {
+                            return new WebResourceResponse(path.endsWith(".png") ? "image/png" : "image/jpeg", null, getAssets().open(path.substring(1)));
+                        }
                         if ("/catalog-123elec.json".equals(path)) {
                             return new WebResourceResponse("application/json", "UTF-8", catalogUpdater.openCatalog());
                         }
@@ -67,6 +78,11 @@ public class MainActivity extends Activity {
                         case "/app.js": asset = "app.js"; mime = "application/javascript"; break;
                         case "/catalog.js": asset = "catalog.js"; mime = "application/javascript"; break;
                         case "/form-helpers.js": asset = "form-helpers.js"; mime = "application/javascript"; break;
+                        case "/clients.js": asset = "clients.js"; mime = "application/javascript"; break;
+                        case "/equipment.js": asset = "equipment.js"; mime = "application/javascript"; break;
+                        case "/quote-flow.js": asset = "quote-flow.js"; mime = "application/javascript"; break;
+                        case "/flow.css": asset = "flow.css"; mime = "text/css"; break;
+                        case "/equipment-images.json": asset = "equipment-images.json"; mime = "application/json"; break;
                         case "/catalog-123elec.json": asset = "catalog-123elec.json"; mime = "application/json"; break;
                         default: return new WebResourceResponse("text/plain", "UTF-8", null);
                     }

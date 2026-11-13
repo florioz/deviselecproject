@@ -125,4 +125,13 @@ public class CatalogUpdaterTest {
         assertEquals(7, result.getJSONArray("products").getJSONObject(1).getDouble("cost"), 0.001);
         assertEquals("2020-01-01", result.getJSONArray("products").getJSONObject(1).getString("checked"));
     }
+
+    @Test public void sitemapKeepsProductPhotosForExistingAndNewReferences() throws Exception {
+        Map<String, JSONObject> products = new LinkedHashMap<>();
+        products.put(BASE + "a.html", new JSONObject().put("id", "existing"));
+        String sitemap = SITEMAP.replace("<image:title>", "<image:loc>" + BASE + "media/photo.jpg</image:loc><image:title>");
+        CatalogUpdater.readSitemap(sitemap, products);
+        assertEquals(BASE + "media/photo.jpg", products.get(BASE + "a.html").getString("image"));
+        assertEquals(BASE + "media/photo.jpg", products.get(BASE + "b.html").getString("image"));
+    }
 }

@@ -240,22 +240,27 @@ public final class CatalogUpdater {
         factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
         factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
         factory.newSAXParser().parse(new InputSource(new StringReader(xml)), new DefaultHandler() {
-            String url = "", title = "", target = "";
+            String url = "", title = "", imageUrl = "", target = "";
             boolean image;
             StringBuilder text = new StringBuilder();
             @Override public void startElement(String uri, String local, String qualified, Attributes attributes) {
-                if (local.equals("url")) { url = ""; title = ""; }
+                if (local.equals("url")) { url = ""; title = ""; imageUrl = ""; }
                 if (local.equals("image")) image = true;
                 if (local.equals("loc") && !image) { target = "url"; text.setLength(0); }
+                if (local.equals("loc") && image && imageUrl.isEmpty()) { target = "imageUrl"; text.setLength(0); }
                 if (local.equals("title") && image && title.isEmpty()) { target = "title"; text.setLength(0); }
             }
             @Override public void characters(char[] chars, int start, int length) { if (!target.isEmpty()) text.append(chars, start, length); }
             @Override public void endElement(String uri, String local, String qualified) {
                 if (local.equals("loc") && target.equals("url")) { url = text.toString().trim(); target = ""; }
+                if (local.equals("loc") && target.equals("imageUrl")) { imageUrl = text.toString().trim(); target = ""; }
                 if (local.equals("title") && target.equals("title")) { title = text.toString().trim(); target = ""; }
                 if (local.equals("image")) image = false;
-                if (local.equals("url") && url.startsWith(BASE) && !title.isEmpty() && !products.containsKey(url)) {
-                    try { products.put(url, newProduct(url, title)); }
+                if (local.equals("url") && url.startsWith(BASE) && !title.isEmpty()) {
+                    try {
+                        if (!products.containsKey(url)) products.put(url, newProduct(url, title));
+                        if (imageUrl.startsWith(BASE + "media/")) products.get(url).put("image", imageUrl);
+                    }
                     catch (Exception invalidProduct) { throw new IllegalArgumentException(invalidProduct); }
                 }
             }

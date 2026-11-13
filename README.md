@@ -12,12 +12,12 @@ Le sélecteur de logo et l’aperçu des devis sont accessibles dans le navigate
 
 ### Application Android
 
-Le fichier `livraison/Deviselec-0.3.0-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
+Le fichier `livraison/Deviselec-0.4.0-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
 
 1. Créer un profil dans **Entreprise** : identité, adresse, logo, tarifs, TVA et conditions.
-2. Dans **Catalogue**, rechercher une référence 123elec par mots, référence ou EAN. Choisir une famille et une marque, enregistrer ses favoris ou personnaliser ses prix.
-3. Dans **Mes devis**, créer un devis, choisir le mode horaire, forfaitaire ou mixte, puis ajouter les lignes.
-4. **Enregistrer** conserve le devis sur ce téléphone. **Générer le PDF** ouvre le service d’impression Android : choisir **Enregistrer au format PDF**, puis le dossier de destination. Le fichier peut ensuite être partagé depuis le gestionnaire de fichiers.
+2. Dans **Clients**, enregistrer les coordonnées des clients de l’entreprise. Les clients des anciens devis sont repris automatiquement dans ce carnet.
+3. Dans **Mes devis**, créer un devis. L’étape **Matériel** propose un arbre visuel de familles et d’équipements, puis les marques et budgets. **Ajouter** et les boutons **+ / −** remplissent directement la sélection. Les favoris et les références déjà utilisées sont proposés en premier. La recherche par référence ou mots reste disponible.
+4. Continuer vers **Client et chantier**, sélectionner un client et préciser le chantier, puis **Conditions et PDF** pour la main-d’œuvre, les remises, les conditions et le document final. La création d’un client depuis ce parcours ouvre le carnet et ramène au devis en conservant le matériel. Le brouillon se sauvegarde pendant la sélection et aux changements d’étape. **Générer le PDF** ouvre le service d’impression Android pour choisir **Enregistrer au format PDF**.
 5. Exporter régulièrement une sauvegarde depuis **Données**. Une désinstallation supprime les données locales.
 
 ## Périmètre
@@ -28,6 +28,7 @@ Le fichier `livraison/Deviselec-0.3.0-debug.apk` est une version de test signée
 - Duplication, recherche, suivi manuel des devis et sauvegarde/restauration JSON.
 - Choix de durée, modèles de paiement, reprise d’un client existant, suggestions d’objet et prestations rapides.
 - Catalogue fournisseur partagé hors connexion et personnalisations propres à chaque entreprise.
+- Carnet Clients par entreprise et parcours de devis en trois étapes, avec ajout direct et ajustement rapide des quantités.
 - Filtres par famille, marque, type, favoris, bibliothèque, prix et disponibilité relevée. Tri et affichage progressif de 30 résultats.
 - PDF A4 : identité de l’entreprise au moment de la création, logo, client, chantier, lignes, remises, ventilation TVA, conditions et espace de signature.
 
@@ -38,6 +39,10 @@ Le catalogue embarqué contient **6 506 fiches** issues du plan du site public d
 La conversion des prix publics TTC en coûts d’achat HT utilise une TVA de **20 %**, avec arrondi au centime et frais de livraison exclus. Ces prix sont indicatifs et modifiables. Vérifier le conditionnement et le prix applicable sur la fiche fournisseur. Les références sans offre numérique exploitable demandent la saisie d’un prix d’achat avant leur ajout au devis.
 
 Les familles sont attribuées automatiquement d’après les désignations. La personnalisation d’une référence permet de corriger la famille, la marque ou le coût pour l’entreprise active. Les favoris sont propres à l’entreprise. Chaque devis conserve le prix et les informations de la référence au moment de son ajout.
+
+L’arbre de sélection classe les équipements d’après leurs familles et désignations. Les photos de 6 506 références sont indexées depuis le plan du site public de 123elec. **38 photos représentatives** sont embarquées pour naviguer hors connexion. Les autres photos sont téléchargées à la demande. Sur Android, elles sont mises en cache sur le téléphone dans une limite de 60 Mo. Une référence reste sélectionnable lorsque sa photo est indisponible. Les budgets de l’étape Matériel portent sur les prix de vente HT avec la majoration de l’entreprise. L’onglet Catalogue affiche les coûts d’achat HT.
+
+Les recommandations proviennent des favoris et de l’historique local des devis de l’entreprise. Les anciens devis conservent leurs prix et leurs coordonnées. Modifier une fiche Client permet de préparer les futurs devis avec les nouvelles coordonnées.
 
 Dans **Catalogue**, le bouton **Mettre à jour 123elec** récupère les références du plan du site, les prix par famille puis les fiches complémentaires. La progression et un bouton d’annulation sont affichés. Garder l’application ouverte pendant le téléchargement, de préférence en Wi-Fi. Le nouveau catalogue est enregistré dans un fichier local à la fin d’une actualisation exploitable. Une annulation ou un échec de connexion laisse le catalogue précédent disponible. Les pages individuellement indisponibles conservent leurs anciens prix et dates et sont signalées dans le bilan.
 
@@ -92,3 +97,5 @@ py tools/import_123elec.py --details
 ```
 
 La récupération utilise deux connexions simultanées et un cache quotidien dans `tmp/123elec`. Les pages en échec sont consignées dans le catalogue.
+
+Pour reconstruire l’index des photos et les visuels représentatifs, utiliser `py tools/prepare_catalog_images.py`.

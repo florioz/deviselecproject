@@ -131,55 +131,6 @@ function setupLogoInput() {
     };
 }
 
-function attachQuoteHelpers() {
-    addDurationChoices();
-    addPaymentChoices();
-    const quotes = db.quotes.filter(quote => quote.companyId === db.active);
-    const clients = new Map();
-    quotes.forEach(quote => {
-        const key = normalizeSearch(quote.client + ' ' + quote.clientAddress);
-        clients.set(key, quote);
-    });
-    if (clients.size) {
-        const previousClients = [...clients.values()].sort((a, b) => a.client.localeCompare(b.client, 'fr'));
-        const block = document.createElement('div');
-        block.className = 'field full';
-        block.innerHTML = `<label for="previousClient">Reprendre un client enregistré</label>
-            <select id="previousClient"><option value="">Nouveau client / saisie libre</option>
-            ${previousClients.map((quote, index) => `<option value="${index}">${esc(quote.client)} · ${esc(quote.clientAddress.replace(/\n/g, ', '))}</option>`).join('')}
-            </select>`;
-        $('f-client').closest('.grid').prepend(block);
-        $('previousClient').onchange = event => {
-            if (event.target.value === '') return;
-            const quote = previousClients[Number(event.target.value)];
-            for (const field of ['client', 'clientAddress', 'email']) {
-                $('f-' + field).value = quote[field] || '';
-                notifyField($('f-' + field));
-            }
-        };
-    }
-    const subjects = [
-        'Installation électrique neuve', 'Rénovation électrique', 'Mise en sécurité électrique',
-        'Remplacement de tableau électrique', 'Ajout de prises et interrupteurs',
-        'Installation d’éclairage', 'Dépannage électrique', 'Installation de VMC',
-        'Installation de borne de recharge',
-    ];
-    addSuggestions($('f-title'), [...subjects, ...quotes.map(quote => quote.title)], 'quoteSubjects');
-    addSuggestions($('f-client'), quotes.map(quote => quote.client), 'clientNames');
-    const sameAddress = document.createElement('button');
-    sameAddress.type = 'button';
-    sameAddress.className = 'text-button';
-    sameAddress.textContent = 'Utiliser l’adresse du client';
-    sameAddress.onclick = () => {
-        $('f-site').value = $('f-clientAddress').value.replace(/\n/g, ', ');
-        notifyField($('f-site'));
-    };
-    $('f-site').after(sameAddress);
-    $('f-client').autocomplete = 'name';
-    $('f-clientAddress').autocomplete = 'street-address';
-    $('f-email').autocomplete = 'email';
-}
-
 function attachLineHelpers(line) {
     const form = $('lineForm');
     const templates = [

@@ -10,6 +10,11 @@ const routes = new Map([
     ['/app.js', ['app.js', 'application/javascript']],
     ['/catalog.js', ['catalog.js', 'application/javascript']],
     ['/form-helpers.js', ['form-helpers.js', 'application/javascript']],
+    ['/clients.js', ['clients.js', 'application/javascript']],
+    ['/equipment.js', ['equipment.js', 'application/javascript']],
+    ['/quote-flow.js', ['quote-flow.js', 'application/javascript']],
+    ['/flow.css', ['flow.css', 'text/css']],
+    ['/equipment-images.json', ['equipment-images.json', 'application/json']],
     ['/catalog-123elec.json', ['catalog-123elec.json', 'application/json']],
 ]);
 
@@ -27,7 +32,8 @@ const server = http.createServer((request, response) => {
         return;
     }
     if (pathname === '/favicon.ico') { response.writeHead(204).end(); return; }
-    const resource = routes.get(pathname);
+    const photo = /^\/equipment-images\/[a-z0-9-]+\.(jpg|jpeg|png|webp)$/.test(pathname);
+    const resource = routes.get(pathname) || (photo ? [pathname.slice(1), pathname.endsWith('.png') ? 'image/png' : 'image/jpeg'] : null);
     if (!resource) { response.writeHead(404).end(); return; }
     fs.readFile(path.join(assets, resource[0]), (error, bytes) => {
         if (error) { response.writeHead(500).end('Ressource indisponible'); return; }
