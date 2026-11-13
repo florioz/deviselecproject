@@ -1,6 +1,6 @@
 {
   "name": "deviselec-checks",
   "private": true,
-  "scripts": { "test": "node tests/smoke.cjs" },
+  "scripts": { "test": "node tests/smoke.cjs", "preview": "node tools/preview.cjs" },
   "devDependencies": { "playwright": "1.58.2" }
 }

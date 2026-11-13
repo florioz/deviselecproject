@@ -4,6 +4,14 @@ Application Android 8 et versions suivantes. Fonctionne hors connexion, sans com
 
 ## Installer
 
+### Aperçu sur ordinateur
+
+Sous Windows, double-cliquer sur `Ouvrir-Deviselec.cmd` pour ouvrir l’application dans le navigateur. Le lanceur utilise Node.js, démarre un serveur local sur `http://127.0.0.1:8765` et réutilise le serveur aux ouvertures suivantes. Le serveur lit directement les fichiers du projet. Les données de cet aperçu sont enregistrées dans le navigateur.
+
+Le sélecteur de logo et l’aperçu des devis sont accessibles dans le navigateur. L’actualisation native du catalogue et les sélecteurs Android se vérifient avec l’APK. Pour démarrer le serveur dans un terminal, utiliser `npm run preview`.
+
+### Application Android
+
 Le fichier `livraison/Deviselec-0.3.0-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
 
 1. Créer un profil dans **Entreprise** : identité, adresse, logo, tarifs, TVA et conditions.
