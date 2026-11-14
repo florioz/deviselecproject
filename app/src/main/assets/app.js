@@ -115,6 +115,7 @@ function navigate(next) {
   render();
 }
 $("companySelect").onchange = (event) => {
+  if (!db.companies.some((item) => item.id === event.target.value)) return;
   if (draft) {
     capture();
     if (!storeQuote(true)) {
@@ -128,10 +129,20 @@ $("companySelect").onchange = (event) => {
   save();
   render();
 };
-function renderCompany() {
-  const c = company() || {};
+function renderCompany(creating = false) {
+  const c = creating ? {} : company() || {};
+  if (creating) {
+    const option = new window.Option(
+      "Nouvelle entreprise (non enregistrée)",
+      "",
+      true,
+      true,
+    );
+    $("companySelect").add(option);
+    $("companySelect").value = "";
+  }
   $("main").innerHTML =
-    `<div class="row"><h1>Mon entreprise</h1><button id="newCompany" class="secondary">+ Ajouter</button></div><p class="muted">Chaque entreprise possède ses devis, son catalogue et ses réglages. Les profils restent sur cet appareil.</p><form id="companyForm" class="card"><h2>Identité professionnelle</h2><div class="grid">${field("name", "Nom commercial / raison sociale *", c.name, "text", "required")}${field("legal", "Forme juridique et capital", c.legal)}${field("siret", "SIRET", c.siret, "text", 'inputmode="numeric" pattern="[0-9 ]{14,18}"')}${field("vatId", "Numéro de TVA intracommunautaire", c.vatId)}${area("address", "Adresse complète", c.address)}${field("email", "E-mail", c.email, "email")}${field("phone", "Téléphone", c.phone, "tel")}${area("insurance", "Assurance professionnelle : assureur, coordonnées, contrat, couverture géographique", c.insurance)}${field("rate", "Tarif horaire HT (€)", c.rate ?? 45, "number", 'min="0" step="0.01" required')}${field("markup", "Majoration du prix d’achat (%)", c.markup ?? 30, "number", 'min="0" step="0.1" required')}${select(
+    `<div class="row"><h1>${creating ? "Nouvelle entreprise" : "Mon entreprise"}</h1><button id="newCompany" class="secondary">+ Ajouter</button></div><p class="muted">Chaque entreprise possède ses devis, son catalogue et ses réglages. Les profils restent sur cet appareil.</p><form id="companyForm" class="card"><h2>Identité professionnelle</h2><div class="grid">${field("name", "Nom commercial / raison sociale *", c.name, "text", "required")}${field("legal", "Forme juridique et capital", c.legal)}${field("siret", "SIRET", c.siret, "text", 'inputmode="numeric" pattern="[0-9 ]{14,18}"')}${field("vatId", "Numéro de TVA intracommunautaire", c.vatId)}${area("address", "Adresse complète", c.address)}${field("email", "E-mail", c.email, "email")}${field("phone", "Téléphone", c.phone, "tel")}${area("insurance", "Assurance professionnelle : assureur, coordonnées, contrat, couverture géographique", c.insurance)}${field("rate", "Tarif horaire HT (€)", c.rate ?? 45, "number", 'min="0" step="0.01" required')}${field("markup", "Majoration du prix d’achat (%)", c.markup ?? 30, "number", 'min="0" step="0.1" required')}${select(
       "vat",
       "TVA par défaut",
       [
@@ -141,11 +152,12 @@ function renderCompany() {
         [0, "0 %"],
       ],
       c.vat ?? 20,
-    )}${field("validity", "Validité du devis (jours)", c.validity ?? 30, "number", 'min="1" max="365" required')}${area("terms", "Conditions de paiement et d’exécution", c.terms || "Acompte de 30 % à la commande. Solde à la réception des travaux. Planning à convenir avec le client.")}${area("vatNote", "Mention TVA (si nécessaire)", c.vatNote)}<div class="full"><label>Logo (PNG, JPEG ou WebP)</label><input id="logoInput" type="file" accept="image/png,image/jpeg,image/webp">${c.logo ? `<img src="${esc(c.logo)}" alt="Logo" style="max-height:65px;margin-top:10px"><label><input type="checkbox" name="removeLogo" style="width:auto;min-height:0"> Retirer le logo</label>` : ""}</div></div><button type="submit">Enregistrer l’entreprise</button></form>`;
+    )}${field("validity", "Validité du devis (jours)", c.validity ?? 30, "number", 'min="1" max="365" required')}${area("terms", "Conditions de paiement et d’exécution", c.terms || "Acompte de 30 % à la commande. Solde à la réception des travaux. Planning à convenir avec le client.")}${area("vatNote", "Mention TVA (si nécessaire)", c.vatNote)}<div class="full"><label>Logo (PNG, JPEG ou WebP)</label><input id="logoInput" type="file" accept="image/png,image/jpeg,image/webp">${c.logo ? `<img src="${esc(c.logo)}" alt="Logo" style="max-height:65px;margin-top:10px"><label><input type="checkbox" name="removeLogo" style="width:auto;min-height:0"> Retirer le logo</label>` : ""}</div></div><div class="actions"><button type="submit">Enregistrer l’entreprise</button>${creating ? '<button type="button" id="cancelCompany" class="secondary">Annuler</button>' : ""}</div></form>`;
   $("newCompany").onclick = () => {
-    db.active = null;
-    renderCompany();
+    render();
+    renderCompany(true);
   };
+  if ($("cancelCompany")) $("cancelCompany").onclick = render;
   $("companyForm").onsubmit = async (e) => {
     e.preventDefault();
     const form = e.target;
@@ -156,34 +168,44 @@ function renderCompany() {
     try {
       let values = Object.fromEntries(new FormData(e.target));
       let logo = c.logo || "";
-      const file = $("logoInput").files[0];
+      const file = form.querySelector("#logoInput").files[0];
       if (file) {
-        logo = await $("companyForm").logoPromise;
+        logo = await form.logoPromise;
         if (!logo) {
           toast("Choisissez une image lisible pour le logo");
           return;
         }
       }
+      if (!form.isConnected) return;
       if (values.removeLogo) logo = "";
       let next = {
+        ...c,
         ...values,
         id: c.id || uid(),
         logo,
         rate: num(values.rate),
-        internalHourlyCost: values.internalHourlyCost === "" ? null : num(values.internalHourlyCost),
+        internalHourlyCost:
+          values.internalHourlyCost === ""
+            ? null
+            : num(values.internalHourlyCost),
         markup: num(values.markup),
         vat: num(values.vat),
         validity: num(values.validity),
         nextNumber: c.nextNumber || 1,
       };
       delete next.removeLogo;
+      const previousCompanies = db.companies;
+      const previousActive = db.active;
       if (c.id)
         db.companies = db.companies.map((x) => (x.id === c.id ? next : x));
-      else db.companies.push(next);
+      else db.companies = [...db.companies, next];
       db.active = next.id;
       if (save()) {
         toast("Entreprise enregistrée");
         render();
+      } else {
+        db.companies = previousCompanies;
+        db.active = previousActive;
       }
     } finally {
       delete form.dataset.saving;
@@ -257,7 +279,8 @@ function capture() {
   Object.assign(draft, Object.fromEntries(new FormData($("quoteForm"))));
   draft.discount = num(draft.discount);
   draft.validity = num(draft.validity);
-  if (draft.priceAgeDays !== undefined) draft.priceAgeDays = num(draft.priceAgeDays, 90);
+  if (draft.priceAgeDays !== undefined)
+    draft.priceAgeDays = num(draft.priceAgeDays, 90);
 }
 function lineModal(index, source) {
   if (isQuoteLocked(draft)) return;
@@ -348,7 +371,12 @@ function lineModal(index, source) {
     const vatField = $("f-vat");
     vatField.closest(".field").hidden = true;
   }
-  addClosedChoices($("f-room"), roomNames(), "lineRoomChoice", "Nouvelle pièce…");
+  addClosedChoices(
+    $("f-room"),
+    roomNames(),
+    "lineRoomChoice",
+    "Nouvelle pièce…",
+  );
   if (index !== undefined) {
     const remove = document.createElement("button");
     remove.type = "button";
@@ -365,13 +393,13 @@ function lineModal(index, source) {
 }
 function renderSettings() {
   $("main").innerHTML =
-    `<h1>Mes données</h1><section class="card"><h2>Stockage local</h2><p>Les profils, catalogues et devis sont conservés sur ce téléphone. Exportez régulièrement une sauvegarde et avant de désinstaller l’application.</p><p class="muted">${db.companies.length} entreprise(s) · ${db.quotes.length} devis · ${db.catalog.length} référence(s) · ${(db.clients || []).length} clients · ${(db.workKits || []).length} kits · ${(db.laborPresets || []).length} forfaits</p><p class="muted">La sauvegarde comprend les logos, clients, devis avec leurs pièces et prix enregistrés, références personnelles, favoris, kits et forfaits. Les photos du catalogue et sa base fournisseur actualisée ne sont pas incluses : elles peuvent être rechargées depuis Catalogue.</p><div class="actions"><button id="backup">Exporter la sauvegarde</button><button id="restore" class="secondary">Restaurer</button></div></section><section class="card"><h2>Deviselec · 0.7.5</h2><p class="muted">Profils d’entreprise locaux : pas de compte en ligne ni de synchronisation entre téléphones dans cette version. Le PDF s’enregistre depuis la fenêtre Android « Enregistrer au format PDF ».</p></section>`;
+    `<h1>Mes données</h1><section class="card"><h2>Stockage local</h2><p>Les profils, catalogues et devis sont conservés sur ce téléphone. Exportez régulièrement une sauvegarde et avant de désinstaller l’application.</p><p class="muted">${db.companies.length} entreprise(s) · ${db.quotes.length} devis · ${db.catalog.length} référence(s) · ${(db.clients || []).length} clients · ${(db.workKits || []).length} kits · ${(db.laborPresets || []).length} forfaits</p><p class="muted">La sauvegarde comprend les logos, clients, devis avec leurs pièces et prix enregistrés, références personnelles, favoris, kits et forfaits. Les photos du catalogue et sa base fournisseur actualisée ne sont pas incluses : elles peuvent être rechargées depuis Catalogue.</p><div class="actions"><button id="backup">Exporter la sauvegarde</button><button id="restore" class="secondary">Restaurer</button></div></section><section class="card"><h2>Deviselec · 0.7.6</h2><p class="muted">Profils d’entreprise locaux : pas de compte en ligne ni de synchronisation entre téléphones dans cette version. Le PDF s’enregistre depuis la fenêtre Android « Enregistrer au format PDF ».</p></section>`;
   $("backup").onclick = () => {
     const backup = JSON.stringify({
       ...db,
       backupInfo: {
         app: "Deviselec",
-        version: "0.7.5",
+        version: "0.7.6",
         exportedAt: new Date().toISOString(),
       },
     });

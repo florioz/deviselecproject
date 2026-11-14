@@ -12,7 +12,7 @@ Le sélecteur de logo et l’aperçu des devis sont accessibles dans le navigate
 
 ### Application Android
 
-Le fichier `livraison/Deviselec-0.7.5-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
+Le fichier `livraison/Deviselec-0.7.6-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
 
 1. Créer un profil dans **Entreprise** : identité, adresse, logo, tarifs, TVA et conditions.
 2. Dans **Clients**, enregistrer les coordonnées des clients de l’entreprise. Les clients des anciens devis sont repris automatiquement dans ce carnet.
@@ -141,3 +141,5 @@ La récupération utilise deux connexions simultanées et un cache quotidien dan
 Pour reconstruire l’index des photos et les visuels représentatifs, utiliser `py tools/prepare_catalog_images.py`.
 
 Pour reconstruire les profils techniques, utiliser `py tools/prepare_catalog_specs.py`. Le script réutilise les fiches mises en cache et complète les fiches de prises avec deux téléchargements simultanés. Les règles d’extraction se vérifient avec `py tools/test_catalog_specs.py`.
+
+La création d’une entreprise ne désélectionne plus le profil actif avant enregistrement. Le formulaire de création affiche une option dédiée dans le sélecteur et un bouton Annuler ; sélectionner un profil existant rouvre ses informations pour modification. Les modifications conservent les réglages existants et sont annulées en mémoire si le stockage échoue.
