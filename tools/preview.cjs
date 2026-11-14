@@ -15,6 +15,7 @@ const routes = new Map([
     ['/recovery.js', ['recovery.js', 'application/javascript']],
     ['/quote-insights.js', ['quote-insights.js', 'application/javascript']],
     ['/quote-safety.js', ['quote-safety.js', 'application/javascript']],
+    ['/wires.js', ['wires.js', 'application/javascript']],
     ['/app.js', ['app.js', 'application/javascript']],
     ['/catalog.js', ['catalog.js', 'application/javascript']],
     ['/form-helpers.js', ['form-helpers.js', 'application/javascript']],

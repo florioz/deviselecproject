@@ -133,7 +133,11 @@ function catalogItems() {
         brand: product.brand || source?.brand || "Mon entreprise",
       };
     }),
-    ...products,
+    ...products.map((product) =>
+      /\bprix au m[eè]tre\b/i.test(product.label)
+        ? { ...product, unit: "m" }
+        : product,
+    ),
   ];
 }
 
@@ -250,6 +254,7 @@ function mountCatalogBrowser(container, picker, selectionOptions = {}) {
         </div>
         <div id="equipmentExplorer"></div>
         <section id="comparisonPanel" class="comparison-panel" hidden></section>
+        <section id="wireFilters" class="wire-filters card" hidden></section>
         <div id="catalogRefinements"><div class="grid">
             <div class="field" id="catalogFamilyField"><label for="catalogCategory">Famille</label>
                 <select id="catalogCategory">${filterOptions(
@@ -326,6 +331,7 @@ function mountCatalogBrowser(container, picker, selectionOptions = {}) {
       treeLeaf: quoteCatalogState.treeLeaf,
       showResults: quoteCatalogState.showResults,
       comparison: quoteCatalogState.comparison,
+      wire: quoteCatalogState.wire || {},
     });
     for (const [id, value] of Object.entries(quoteCatalogState))
       if ($(id)) $(id).value = value;
@@ -369,6 +375,7 @@ function mountCatalogBrowser(container, picker, selectionOptions = {}) {
       if (id === "catalogMin" || id === "catalogMax")
         $("catalogBudget").value = "";
       if (id === "catalogCategory") {
+        browser.wire = {};
         browser.comparison = null;
         browser.treeFamily = "";
         browser.treeLeaf = "";
@@ -381,6 +388,7 @@ function mountCatalogBrowser(container, picker, selectionOptions = {}) {
     };
   }
   $("resetFilters").onclick = () => {
+    browser.wire = {};
     browser.comparison = null;
     browser.treeFamily = "";
     browser.treeLeaf = "";
@@ -400,6 +408,7 @@ function mountCatalogBrowser(container, picker, selectionOptions = {}) {
     updateCatalogResults(browser);
   };
   updateCatalogResults(browser);
+  return browser;
 }
 
 function updateBrandChoices(browser) {
@@ -412,6 +421,7 @@ function updateBrandChoices(browser) {
     .filter(({ product }) => {
       if (!matchesComparison(product, browser)) return false;
       if (!equipmentMatches(product, browser)) return false;
+      if (!matchesWireFilters(product, browser)) return false;
       if (category && category !== product.category) return false;
       if (kind && kind !== product.kind) return false;
       if (source === "favorites") return favorites.has(productKey(product));
@@ -441,6 +451,7 @@ function updateCatalogResults(browser) {
   });
   renderEquipmentExplorer(browser);
   renderComparisonPanel(browser);
+  renderWireFilters(browser);
   rememberEquipmentState(browser);
   const query = normalizeSearch($("catalogSearch").value);
   const words = query.split(" ").filter(Boolean);
@@ -465,6 +476,7 @@ function updateCatalogResults(browser) {
   const filtered = browser.items.filter(({ product, search, price }) => {
     if (!matchesComparison(product, browser)) return false;
     if (!equipmentMatches(product, browser)) return false;
+    if (!matchesWireFilters(product, browser)) return false;
     const known =
       price !== null && price !== undefined && Number.isFinite(Number(price));
     if (category && category !== product.category) return false;
@@ -509,6 +521,7 @@ function updateCatalogResults(browser) {
           );
         return (
           (exact ? 100 : 0) +
+          wireRelevance(product) +
           (favorites.has(productKey(product)) ? 10 : 0) +
           Math.min(
             8,

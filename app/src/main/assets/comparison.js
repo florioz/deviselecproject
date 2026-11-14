@@ -141,6 +141,7 @@ function matchesComparison(product, browser) {
 }
 
 function startProductComparison(product, browser) {
+  browser.wire = {};
   const available = comparisonFields(product);
   const essential = [
     "poles",

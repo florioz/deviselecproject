@@ -35,7 +35,13 @@ const EQUIPMENT_FAMILIES = [
     label: "Câbles et gaines",
     category: "Câbles et conduits",
     leaves: [
-      ["cables", "Câbles et fils", /cable|\bfil\b/],
+      ["3g15", "Câbles 3G1,5 mm²", /3g1 5/],
+      ["3g25", "Câbles 3G2,5 mm²", /3g2 5/],
+      ["h07vu", "Fils rigides H07V-U", /h07v.?u/],
+      ["h07vk", "Fils souples H07V-K", /h07v.?k/],
+      ["5g15", "Câbles 5G1,5 mm²", /5g1 5/],
+      ["5g25", "Câbles 5G2,5 mm²", /5g2 5/],
+      ["wires", "Tous les fils et câbles", /cable|\bfil\b/],
       ["gaines", "Gaines ICTA", /gaine|icta/],
       ["tubes", "Tubes IRL", /tube|irl/],
       ["goulottes", "Goulottes et moulures", /goulotte|moulure/],
@@ -177,6 +183,8 @@ function equipmentMatches(product, browser) {
   );
   if (!family || product.category !== family.category) return false;
   const leaf = family.leaves.find((item) => item[0] === browser.treeLeaf);
+  if (family.id === "cables" && Object.hasOwn(WIRE_PRESETS, browser.treeLeaf))
+    return wireProfile(product).isConductor;
   return !leaf || leaf[2].test(normalizeSearch(product.label));
 }
 
@@ -187,6 +195,7 @@ function rememberEquipmentState(browser) {
     treeLeaf: browser.treeLeaf,
     showResults: browser.showResults,
     comparison: browser.comparison,
+    wire: browser.wire,
   };
   for (const id of [
     "catalogSearch",
@@ -311,6 +320,8 @@ function renderEquipmentExplorer(browser) {
     browser.comparison = null;
     browser.treeFamily = familyId;
     browser.treeLeaf = leafId;
+    browser.wire =
+      familyId === "cables" ? { ...(WIRE_PRESETS[leafId] || {}) } : {};
     browser.showResults = Boolean(leafId);
     $("catalogSearch").value = "";
     $("catalogCategory").value =

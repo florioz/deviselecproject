@@ -84,6 +84,7 @@ public class MainActivity extends Activity {
                         case "/recovery.js": asset = "recovery.js"; mime = "application/javascript"; break;
                         case "/quote-insights.js": asset = "quote-insights.js"; mime = "application/javascript"; break;
                         case "/quote-safety.js": asset = "quote-safety.js"; mime = "application/javascript"; break;
+                        case "/wires.js": asset = "wires.js"; mime = "application/javascript"; break;
                         case "/app.js": asset = "app.js"; mime = "application/javascript"; break;
                         case "/catalog.js": asset = "catalog.js"; mime = "application/javascript"; break;
                         case "/form-helpers.js": asset = "form-helpers.js"; mime = "application/javascript"; break;

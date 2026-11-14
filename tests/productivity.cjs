@@ -95,7 +95,6 @@ const assert = require("node:assert/strict");
     await page.locator("#newWorkKit").click();
     await page.locator('#kitForm button[type="submit"]').click();
     assert.equal(await page.evaluate(() => draft.lines.length), 0);
-    await page.locator("#f-kitName").fill("Prise cuisine complète");
     assert.equal(await page.locator('[data-kit-field="vat"]').count(), 0);
     await page.locator("#kitAddMaterial").click();
     await page.evaluate(() => initializeCatalog());
@@ -116,19 +115,16 @@ const assert = require("node:assert/strict");
       .click();
     assert.equal(await page.evaluate(() => draft.lines.length), 0);
     await page.locator("#backKitEditor").click();
-    await page.locator("#kitAddLabor").click();
-    assert.equal(await page.locator(".kit-item").count(), 3);
+    await page.locator("#f-kitHours").fill("0.5");
+    assert.equal(await page.locator(".kit-item").count(), 2);
     await page.locator("#f-kitCount").fill("2");
-    await page.locator('[data-kit-product="0"]').click();
+    await page.locator("#kitAddMaterial").click();
     assert.equal(await page.locator("#catalogSearch").count(), 1);
-    await page.locator("#catalogSearch").fill("600335");
-    await page
-      .locator(".catalog-product")
-      .filter({ hasText: "Réf. 600335" })
-      .locator("[data-pick]")
-      .click();
+    await page.locator("#backKitEditor").click();
     assert.equal(await page.locator("#f-kitCount").inputValue(), "2");
     await page.locator("#saveWorkKit").click();
+    await page.locator("#f-kitName").fill("Prise cuisine complète");
+    await page.locator('#kitNameForm button[type="submit"]').click();
     assert.equal(await page.evaluate(() => ownWorkKits().length), 1);
     await page.locator("#f-kitCount").fill("2");
     await page.locator('#kitForm button[type="submit"]').click();
@@ -441,13 +437,14 @@ const assert = require("node:assert/strict");
     assert.ok(unknown);
     await page.locator("#openKits").click();
     await page.locator("#newWorkKit").click();
-    await page.locator("#f-kitName").fill("Matériel sans prix");
     await page.locator("#kitAddMaterial").click();
     await page.locator("#catalogSearch").fill(unknown.ref);
     await page.locator(`[data-pick="${unknown.id}"]`).click();
     await page.locator("#backKitEditor").click();
     assert.equal(await page.locator('[data-kit-field="vat"]').count(), 0);
     await page.locator('#kitForm button[type="submit"]').click();
+    await page.locator("#f-kitName").fill("Matériel sans prix");
+    await page.locator('#kitNameForm button[type="submit"]').click();
     assert.equal(
       await page.evaluate(() => draft.lines.at(-1).needsPrice),
       true,
