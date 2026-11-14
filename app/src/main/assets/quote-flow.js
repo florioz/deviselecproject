@@ -2,11 +2,13 @@
 
 function renderEditor() {
   document.body.dataset.quoteMode = "true";
+  if (isQuoteLocked(draft)) return renderLockedQuote();
   const stage = Math.max(0, Math.min(2, Number(draft.stage) || 0));
   draft.stage = stage;
   $("main").innerHTML =
     `<div class="row"><div><p class="muted">${esc(draft.number)}</p><h1>Mon devis</h1></div>
         <button id="back" class="secondary">Fermer</button></div>
+        <div class="quote-status-bar"><span class="pill">${esc(draft.status || "Brouillon")}${draft.revision ? " · Version " + draft.revision : ""}</span><button id="changeQuoteStatus" class="text-button">Modifier le statut</button></div>
         <div class="quote-steps" aria-label="Étapes du devis">
             ${["Matériel", "Client et chantier", "Conditions et PDF"]
               .map(
@@ -20,10 +22,11 @@ function renderEditor() {
     ?.scrollIntoView({ block: "nearest", inline: "center" });
   $("back").onclick = () => {
     capture();
-    storeQuote(true);
+    if (!storeQuote(true)) return;
     draft = null;
     renderQuotes();
   };
+  $("changeQuoteStatus").onclick = openQuoteStatusDialog;
   document.querySelectorAll("[data-stage]").forEach((button) => {
     button.onclick = () => changeQuoteStage(Number(button.dataset.stage));
   });
@@ -33,6 +36,7 @@ function renderEditor() {
 }
 
 function changeQuoteStage(stage) {
+  if (isQuoteLocked(draft)) return;
   capture();
   if (stage > 0 && !draft.lines.length) {
     toast("Choisissez au moins un équipement ou une prestation");
@@ -53,8 +57,9 @@ function changeQuoteStage(stage) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function storeQuote(quiet = false) {
+function storeQuote(quiet = false, options = {}) {
   if (!draft) return false;
+  if (db.quotes.find((quote) => quote.id === draft.id)?.locked) return true;
   const previous = db.quotes;
   const c = company();
   const counter = c.nextNumber;
@@ -66,7 +71,7 @@ function storeQuote(quiet = false) {
       )
     : [...previous, structuredClone(draft)];
   if (!exists) c.nextNumber++;
-  if (!save()) {
+  if (!save(options)) {
     db.quotes = previous;
     c.nextNumber = counter;
     return false;
@@ -120,6 +125,7 @@ function quoteProductPrice(product) {
 }
 
 function quickAddProduct(product, delta = 1) {
+  if (isQuoteLocked(draft)) return;
   const existing = quoteProductLine(product);
   if (existing) {
     existing.qty = roundQuantity(existing.qty + delta);
@@ -290,12 +296,7 @@ function renderQuoteReview() {
             </div>${area("terms", "Conditions de paiement et d’exécution", draft.terms)}
             <details><summary>Autres mentions et suivi</summary>${area("vatNote", "Mention TVA", draft.vatNote)}
                 ${area("notes", "Précisions et exclusions", draft.notes)}
-                ${select(
-                  "status",
-                  "Suivi",
-                  QUOTE_STATUSES.map((status) => [status, status]),
-                  draft.status,
-                )}</details>
+                </details>
         </section><section id="summary" class="card total"></section><div class="actions">
             <button type="button" id="previousStage" class="secondary">← Client et chantier</button>
             <button type="submit" class="secondary">Enregistrer</button><button type="button" id="pdf">Générer le PDF</button></div></form>`;
@@ -306,7 +307,16 @@ function renderQuoteReview() {
     capture();
     openLabor();
   };
+  const orderButton = document.createElement("button");
+  orderButton.type = "button";
+  orderButton.id = "purchaseList";
+  orderButton.className = "secondary";
+  orderButton.textContent = "Matériel à commander";
+  orderButton.onclick = () => openPurchaseList(draft);
+  $("reviewSelection").after(orderButton);
   mountQuotePricing();
+  mountQuoteChecks();
+  mountProfitPanel();
   addDurationChoices();
   addPaymentChoices();
   function summary() {
@@ -320,6 +330,7 @@ function renderQuoteReview() {
   $("quoteForm").onchange = () => {
     capture();
     summary();
+    refreshQuoteChecks();
   };
   $("f-discount").oninput = () => {
     capture();
@@ -330,18 +341,16 @@ function renderQuoteReview() {
     capture();
     storeQuote();
   };
-  $("pdf").onclick = () => {
-    if (draft.lines.some((line) => line.needsPrice)) {
-      $("quotePricing").open = true;
-      toast("Complétez les prix manquants avant de générer le PDF");
-      return;
-    }
-    if (!$("quoteForm").reportValidity()) return;
-    capture();
-    if (!draft.lines.length || !draft.client || !draft.clientAddress) {
-      changeQuoteStage(1);
-      return;
-    }
-    if (storeQuote(true)) printQuote(draft);
-  };
+  $("quoteForm").addEventListener(
+    "invalid",
+    (event) => {
+      let details = event.target.closest("details");
+      while (details) {
+        details.open = true;
+        details = details.parentElement.closest("details");
+      }
+    },
+    true,
+  );
+  $("pdf").onclick = requestQuotePdf;
 }

@@ -47,6 +47,13 @@ function validateBackup(v) {
       !q.company ||
       !Array.isArray(q.lines) ||
       !q.lines.every(validLine) ||
+      (q.locked !== undefined && typeof q.locked !== "boolean") ||
+      (q.locked && q.status !== "Accepté") ||
+      (q.revision !== undefined &&
+        (!Number.isInteger(q.revision) || q.revision < 1)) ||
+      (q.versionRoot !== undefined && !validId(q.versionRoot)) ||
+      (q.internalHourlyCost != null &&
+        (!Number.isFinite(q.internalHourlyCost) || q.internalHourlyCost < 0)) ||
       typeof q.date !== "string" ||
       !/^\d{4}-\d{2}-\d{2}$/.test(q.date) ||
       (q.rooms != null &&
@@ -112,7 +119,9 @@ function restoreData(text) {
   try {
     initializeClients(false);
     if (!company()) db.active = db.companies[0]?.id || null;
-    if (!save()) {
+    if (
+      !save({ forceCheckpoint: true, checkpointReason: "Avant restauration" })
+    ) {
       db = previous;
       return false;
     }

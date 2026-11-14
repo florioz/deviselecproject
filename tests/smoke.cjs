@@ -12,7 +12,7 @@ const path = require('node:path');
     const server = http.createServer((request, response) => {
         const name = new URL(request.url, 'http://localhost').pathname.slice(1) || 'index.html';
         if (name === 'catalog-status.json') { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify(updateState)); return; }
-        const allowed = ['base.css', 'pdf.js', 'backup.js', 'quote-dashboard.js', 'kits.js', 'index.html', 'flow.css', 'app.js', 'catalog.js', 'form-helpers.js', 'clients.js', 'equipment.js', 'comparison.js', 'productivity.js', 'equipment-specs.json', 'quote-flow.js', 'catalog-123elec.json', 'equipment-images.json'];
+        const allowed = ['quote-safety.js', 'quote-insights.js', 'recovery.js', 'base.css', 'pdf.js', 'backup.js', 'quote-dashboard.js', 'kits.js', 'index.html', 'flow.css', 'app.js', 'catalog.js', 'form-helpers.js', 'clients.js', 'equipment.js', 'comparison.js', 'productivity.js', 'equipment-specs.json', 'quote-flow.js', 'catalog-123elec.json', 'equipment-images.json'];
         if (!allowed.includes(name) && !/^equipment-images\/[a-z0-9-]+\.(jpg|jpeg|png|webp)$/.test(name)) { response.writeHead(404).end(); return; }
         const mime = name.endsWith('.js') ? 'application/javascript' : name.endsWith('.json') ? 'application/json' : name.endsWith('.css') ? 'text/css' : name.endsWith('.html') ? 'text/html' : 'image/jpeg';
         response.setHeader('Content-Type', mime);

@@ -24,9 +24,9 @@ function repricedLines(lines, products = catalogItems()) {
   });
   return { lines: next, ...report };
 }
-function duplicateQuoteDialog(source) {
+function duplicateQuoteDialog(source, revision = false) {
   const estimate = repricedLines(source.lines);
-  modal(`<h2>Dupliquer ${esc(source.number)}</h2><p>Un nouveau brouillon sera créé. Le client, les pièces et les quantités sont repris et restent modifiables.</p><form id="duplicateForm">${select(
+  modal(`<h2>${revision ? "Nouvelle version de" : "Dupliquer"} ${esc(source.number)}</h2><p>Un nouveau brouillon sera créé. Le client, les pièces et les quantités sont repris et restent modifiables.</p><form id="duplicateForm">${select(
     "copyPrices",
     "Prix du nouveau devis",
     [
@@ -36,12 +36,25 @@ function duplicateQuoteDialog(source) {
     "keep",
   )}
     <p class="notice">Actualisation possible : ${estimate.updated} ligne(s). ${estimate.unavailable} référence(s) absente(s), sans prix ou avec une unité différente : prix d’origine conservé. Main-d’œuvre et lignes libres conservées. La majoration de chaque ligne est conservée ; un prix de vente ajusté manuellement sera recalculé.</p>
-    <p class="muted">Les prix chargés peuvent dater d’un précédent relevé. Vous pouvez d’abord actualiser le catalogue depuis l’onglet Catalogue.</p><div class="actions"><button>Créer la copie</button><button type="button" class="secondary" onclick="closeModal()">Annuler</button></div></form>`);
+    <p class="muted">Les prix chargés peuvent dater d’un précédent relevé. Vous pouvez d’abord actualiser le catalogue depuis l’onglet Catalogue.</p><div class="actions"><button type="submit">Créer la copie</button><button type="button" class="secondary" onclick="closeModal()">Annuler</button></div></form>`);
   $("duplicateForm").onsubmit = (e) => {
     e.preventDefault();
     const current = $("f-copyPrices").value === "current";
     closeModal();
     newQuote(source);
+    if (revision) {
+      const root = source.versionRoot || source.id;
+      const versions = db.quotes.filter(
+        (quote) =>
+          quote.companyId === db.active &&
+          (quote.versionRoot || quote.id) === root,
+      );
+      draft.versionRoot = root;
+      draft.revision =
+        Math.max(...versions.map((quote) => quote.revision || 1)) + 1;
+      draft.supersedes = source.id;
+      draft.previousNumber = source.number;
+    }
     draft.status = "Brouillon";
     if (current) {
       draft.lines = estimate.lines;
@@ -117,7 +130,7 @@ function renderQuotes() {
       found
         .map(
           (q) =>
-            `<article class="line"><div class="row wrap"><div><strong>${esc(q.client || "Brouillon sans client")}</strong><p class="muted">${esc(q.number)} · ${esc(q.date)}<br>${esc(q.title)}</p></div><strong>${money(totals(q).ttc)}</strong></div><label>Statut<select data-quote-status="${esc(q.id)}">${QUOTE_STATUSES.map((s) => `<option ${s === (q.status || "Brouillon") ? "selected" : ""}>${s}</option>`).join("")}</select></label><div class="actions"><button class="secondary" data-open="${esc(q.id)}">Ouvrir</button><button class="secondary" data-copy="${esc(q.id)}">Dupliquer</button></div></article>`,
+            `<article class="line"><div class="row wrap"><div><strong>${esc(q.client || "Brouillon sans client")}</strong><p class="muted">${esc(q.number)}${q.revision ? " · Version " + q.revision : ""} · ${esc(q.date)}<br>${esc(q.title)}</p></div><strong>${money(totals(q).ttc)}</strong></div><span class="pill quote-status">${esc(q.status || "Brouillon")}${q.locked ? " · Verrouillé" : ""}</span><div class="actions"><button class="secondary" data-open="${esc(q.id)}">Ouvrir</button><button class="secondary" data-copy="${esc(q.id)}">Dupliquer</button></div></article>`,
         )
         .join("") ||
       '<p class="empty">Aucun devis ne correspond à ces critères.</p>';
@@ -136,17 +149,6 @@ function renderQuotes() {
           (b.onclick = () =>
             duplicateQuoteDialog(list.find((q) => q.id === b.dataset.copy))),
       );
-    document.querySelectorAll("[data-quote-status]").forEach(
-      (input) =>
-        (input.onchange = () => {
-          const q = list.find((q) => q.id === input.dataset.quoteStatus),
-            previous = { status: q.status, updated: q.updated };
-          q.status = input.value;
-          q.updated = new Date().toISOString();
-          if (!save()) Object.assign(q, previous);
-          results();
-        }),
-    );
   };
   ["search", "f-quoteFrom", "f-quoteTo"].forEach(
     (id) => ($(id).oninput = results),

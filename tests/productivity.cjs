@@ -222,8 +222,12 @@ const assert = require("node:assert/strict");
       preferCSSPageSize: true,
     });
     await print.close();
+    await page.locator("#changeQuoteStatus").click();
+    await page.locator("#f-nextQuoteStatus").selectOption("Accepté");
+    await page.locator("#lockAcceptedQuote").uncheck();
+    await page.locator('#quoteStatusForm button[type="submit"]').click();
     await page.locator("#back").click();
-    await page.locator("[data-quote-status]").selectOption("Accepté");
+    assert.equal(await page.locator("[data-quote-status]").count(), 0);
     await page
       .locator("summary")
       .filter({ hasText: "Statut, dates et tri" })

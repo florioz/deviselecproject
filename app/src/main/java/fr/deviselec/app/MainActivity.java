@@ -15,6 +15,7 @@ public class MainActivity extends Activity {
     private WebView web, printWeb;
     private ProductImageCache productImages;
     private String backup;
+    private boolean exportPending;
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         productImages = new ProductImageCache(getCacheDir());
@@ -80,6 +81,9 @@ public class MainActivity extends Activity {
                         case "/backup.js": asset = "backup.js"; mime = "application/javascript"; break;
                         case "/pdf.js": asset = "pdf.js"; mime = "application/javascript"; break;
                         case "/base.css": asset = "base.css"; mime = "text/css"; break;
+                        case "/recovery.js": asset = "recovery.js"; mime = "application/javascript"; break;
+                        case "/quote-insights.js": asset = "quote-insights.js"; mime = "application/javascript"; break;
+                        case "/quote-safety.js": asset = "quote-safety.js"; mime = "application/javascript"; break;
                         case "/app.js": asset = "app.js"; mime = "application/javascript"; break;
                         case "/catalog.js": asset = "catalog.js"; mime = "application/javascript"; break;
                         case "/form-helpers.js": asset = "form-helpers.js"; mime = "application/javascript"; break;
@@ -134,11 +138,26 @@ public class MainActivity extends Activity {
             });
             printWeb.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
         }); }
-        @JavascriptInterface public void backup(String data) { backup = data; runOnUiThread(() -> {
-            Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/json")
-                .addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"deviselec-sauvegarde.json");
-            startActivityForResult(i, 1);
-        }); }
+        @JavascriptInterface public void backup(String data) {
+            exportText(data, "deviselec-sauvegarde.json", "application/json");
+        }
+        @JavascriptInterface public void exportText(String content, String filename, String mime) {
+            if (!"application/json".equals(mime) && !"text/csv".equals(mime)) return;
+            runOnUiThread(() -> {
+                if (exportPending) return;
+                backup = content;
+                exportPending = true;
+                String safeName = filename.replaceAll("[^a-zA-Z0-9._-]", "_");
+                Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT).setType(mime)
+                    .addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE, safeName);
+                try { startActivityForResult(intent, 1); }
+                catch (Exception error) {
+                    backup = null;
+                    exportPending = false;
+                    Toast.makeText(MainActivity.this, "Aucun sélecteur de fichiers disponible", Toast.LENGTH_LONG).show();
+                }
+            });
+        }
         @JavascriptInterface public void restore() { runOnUiThread(() -> startActivityForResult(
             new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("application/json").addCategory(Intent.CATEGORY_OPENABLE), 2)); }
     }
@@ -152,12 +171,16 @@ public class MainActivity extends Activity {
             }
             return;
         }
-        if (result != RESULT_OK || data == null) return;
+        if (request == 1) exportPending = false;
+        if (result != RESULT_OK || data == null) {
+            if (request == 1) backup = null;
+            return;
+        }
         try {
             Uri uri = data.getData();
             if (request == 1) {
                 try (java.io.OutputStream out = getContentResolver().openOutputStream(uri)) { out.write(backup.getBytes(StandardCharsets.UTF_8)); }
-                Toast.makeText(this,"Sauvegarde exportée",Toast.LENGTH_SHORT).show();
+                Toast.makeText(this,"Fichier enregistré",Toast.LENGTH_SHORT).show();
             } else if (request == 2) {
                 try (java.io.InputStream in = getContentResolver().openInputStream(uri)) {
                     java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
@@ -167,6 +190,7 @@ public class MainActivity extends Activity {
                 }
             }
         } catch(Exception e) { Toast.makeText(this,"Impossible de traiter le fichier",Toast.LENGTH_LONG).show(); }
+        finally { if (request == 1) backup = null; }
     }
     @Override protected void onDestroy() {
         if (logoCallback != null) { logoCallback.onReceiveValue(null); logoCallback = null; }

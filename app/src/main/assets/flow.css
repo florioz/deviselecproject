@@ -733,3 +733,63 @@ body[data-quote-mode="true"] header select {
 .selected-line > .row {
   flex-wrap: wrap;
 }
+.quote-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.quote-warning-list {
+  padding-left: 20px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.quote-warning-list li {
+  margin: 8px 0;
+}
+.profit-summary {
+  margin: 16px 0;
+}
+.profit-summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e4ebee;
+  padding: 10px 0;
+}
+.profit-summary dt {
+  font-size: 13px;
+  flex: 1;
+}
+.profit-summary dd {
+  margin: 0;
+  font-weight: 650;
+  text-align: right;
+}
+.internal-cost {
+  margin: 14px 0;
+}
+#profitPanel > label {
+  margin: 20px 0;
+}
+#profitPanel summary,
+#quoteChecks summary,
+.card > details > summary {
+  cursor: pointer;
+  padding: 10px 0;
+  line-height: 1.5;
+}
+.purchase-list {
+  max-height: 60vh;
+  overflow: auto;
+}
+.purchase-list .line {
+  overflow-wrap: anywhere;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+@media(max-width:440px){.profit-summary>div{display:block}.profit-summary dd{text-align:left;margin-top:6px}}

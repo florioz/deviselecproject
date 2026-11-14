@@ -31,9 +31,12 @@ if (!db)
   db = { version: 1, companies: [], quotes: [], catalog: [], active: null };
 let tab = "quotes",
   draft = null;
-function save() {
+function save(options = {}) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(db));
+    const previous = localStorage.getItem(KEY);
+    const current = JSON.stringify(db);
+    localStorage.setItem(KEY, current);
+    queueRecoveryCheckpoint(previous, current, options);
     return true;
   } catch (e) {
     alert(
@@ -167,6 +170,7 @@ function renderCompany() {
         id: c.id || uid(),
         logo,
         rate: num(values.rate),
+        internalHourlyCost: values.internalHourlyCost === "" ? null : num(values.internalHourlyCost),
         markup: num(values.markup),
         vat: num(values.vat),
         validity: num(values.validity),
@@ -186,6 +190,10 @@ function renderCompany() {
       submitButton.disabled = false;
     }
   };
+  const costs = document.createElement("details");
+  costs.className = "full";
+  costs.innerHTML = `<summary>Coût interne pour estimer la rentabilité</summary>${field("internalHourlyCost", "Coût horaire interne estimé HT (€ / h)", c.internalHourlyCost ?? "", "number", 'min="0" max="1000000" step="0.01"')}`;
+  $("companyForm").querySelector(".grid").append(costs);
   attachCompanyHelpers();
 }
 function newQuote(source) {
@@ -216,6 +224,12 @@ function newQuote(source) {
     updated: new Date().toISOString(),
   });
   draft.status = "Brouillon";
+  delete draft.locked;
+  delete draft.lockedAt;
+  delete draft.versionRoot;
+  delete draft.revision;
+  delete draft.supersedes;
+  delete draft.previousNumber;
   draft.stage = 0;
   quoteCatalogState = null;
   tab = "quotes";
@@ -243,8 +257,10 @@ function capture() {
   Object.assign(draft, Object.fromEntries(new FormData($("quoteForm"))));
   draft.discount = num(draft.discount);
   draft.validity = num(draft.validity);
+  if (draft.priceAgeDays !== undefined) draft.priceAgeDays = num(draft.priceAgeDays, 90);
 }
 function lineModal(index, source) {
+  if (isQuoteLocked(draft)) return;
   const c = company(),
     l =
       index !== undefined
@@ -349,26 +365,17 @@ function lineModal(index, source) {
 }
 function renderSettings() {
   $("main").innerHTML =
-    `<h1>Mes données</h1><section class="card"><h2>Stockage local</h2><p>Les profils, catalogues et devis sont conservés sur ce téléphone. Exportez régulièrement une sauvegarde et avant de désinstaller l’application.</p><p class="muted">${db.companies.length} entreprise(s) · ${db.quotes.length} devis · ${db.catalog.length} référence(s) · ${(db.clients || []).length} clients · ${(db.workKits || []).length} kits · ${(db.laborPresets || []).length} forfaits</p><p class="muted">La sauvegarde comprend les logos, clients, devis avec leurs pièces et prix enregistrés, références personnelles, favoris, kits et forfaits. Les photos du catalogue et sa base fournisseur actualisée ne sont pas incluses : elles peuvent être rechargées depuis Catalogue.</p><div class="actions"><button id="backup">Exporter la sauvegarde</button><button id="restore" class="secondary">Restaurer</button></div></section><section class="card"><h2>Deviselec · 0.6.2</h2><p class="muted">Profils d’entreprise locaux : pas de compte en ligne ni de synchronisation entre téléphones dans cette version. Le PDF s’enregistre depuis la fenêtre Android « Enregistrer au format PDF ».</p></section>`;
+    `<h1>Mes données</h1><section class="card"><h2>Stockage local</h2><p>Les profils, catalogues et devis sont conservés sur ce téléphone. Exportez régulièrement une sauvegarde et avant de désinstaller l’application.</p><p class="muted">${db.companies.length} entreprise(s) · ${db.quotes.length} devis · ${db.catalog.length} référence(s) · ${(db.clients || []).length} clients · ${(db.workKits || []).length} kits · ${(db.laborPresets || []).length} forfaits</p><p class="muted">La sauvegarde comprend les logos, clients, devis avec leurs pièces et prix enregistrés, références personnelles, favoris, kits et forfaits. Les photos du catalogue et sa base fournisseur actualisée ne sont pas incluses : elles peuvent être rechargées depuis Catalogue.</p><div class="actions"><button id="backup">Exporter la sauvegarde</button><button id="restore" class="secondary">Restaurer</button></div></section><section class="card"><h2>Deviselec · 0.7.0</h2><p class="muted">Profils d’entreprise locaux : pas de compte en ligne ni de synchronisation entre téléphones dans cette version. Le PDF s’enregistre depuis la fenêtre Android « Enregistrer au format PDF ».</p></section>`;
   $("backup").onclick = () => {
     const backup = JSON.stringify({
       ...db,
       backupInfo: {
         app: "Deviselec",
-        version: "0.6.2",
+        version: "0.7.0",
         exportedAt: new Date().toISOString(),
       },
     });
-    if (window.Android) Android.backup(backup);
-    else {
-      let a = document.createElement("a");
-      a.href = URL.createObjectURL(
-        new Blob([backup], { type: "application/json" }),
-      );
-      a.download = "deviselec-sauvegarde.json";
-      a.click();
-      URL.revokeObjectURL(a.href);
-    }
+    exportTextFile(backup, "deviselec-sauvegarde.json", "application/json");
   };
   $("restore").onclick = () => {
     if (window.Android) Android.restore();
@@ -390,4 +397,5 @@ function renderSettings() {
       input.click();
     }
   };
+  mountRecoveryPanel();
 }
