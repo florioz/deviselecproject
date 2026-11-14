@@ -12,7 +12,7 @@ Le sélecteur de logo et l’aperçu des devis sont accessibles dans le navigate
 
 ### Application Android
 
-Le fichier `livraison/Deviselec-0.5.0-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
+Le fichier `livraison/Deviselec-0.6.0-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
 
 1. Créer un profil dans **Entreprise** : identité, adresse, logo, tarifs, TVA et conditions.
 2. Dans **Clients**, enregistrer les coordonnées des clients de l’entreprise. Les clients des anciens devis sont repris automatiquement dans ce carnet.
@@ -32,7 +32,17 @@ Le fichier `livraison/Deviselec-0.5.0-debug.apk` est une version de test signée
 - Filtres par famille, marque, type, favoris, bibliothèque, prix et disponibilité relevée. Tri et affichage progressif de 30 résultats.
 - PDF A4 : identité de l’entreprise au moment de la création, logo, client, chantier, lignes, remises, ventilation TVA, conditions et espace de signature.
 
-## 123elec
+## Préparer et suivre les travaux
+
+- **Pièces** : dans Matériel, choisir la pièce de destination avant les ajouts. Le volet « Gérer les pièces et mes kits » permet de dupliquer ou renommer la pièce active. Une duplication reprend les lignes, quantités et prix et augmente le total. Les détails d’une ligne permettent de changer sa pièce. Le PDF regroupe les lignes par pièce, avec une section pour l’ensemble du chantier.
+- **Kits** : les modèles Prise encastrée, Point lumineux et Remplacement de tableau demandent de choisir les références et de vérifier les quantités et durées. Il est possible d’ajouter ou retirer des lignes, de saisir un prix hors catalogue, de sauvegarder le kit pour l’entreprise et de l’ajouter en plusieurs exemplaires dans une pièce. Les prix sauvegardés sont repris et restent modifiables avant ajout. Ces modèles sont des points de départ, pas des études de conformité.
+- **Sélection réutilisable** : « Enregistrer la sélection comme kit » reprend la pièce active, ou toutes les lignes si aucune pièce n’est sélectionnée. Les quantités de la sélection deviennent les quantités d’un kit.
+- **Main-d’œuvre et forfaits** : accès depuis Matériel et Conditions et PDF. Le tarif horaire vient de l’onglet Entreprise ; les forfaits habituels peuvent être enregistrés, modifiés et supprimés pour chaque entreprise. La quantité, le prix et la TVA restent ajustables avant ajout. Les anciens devis conservent leurs valeurs.
+- **Suivi** : Mes devis affiche le statut Brouillon, Envoyé, Accepté ou Refusé, modifiable directement. La recherche se combine avec le statut et une période de dates d’émission. Tri par modification, date ou montant TTC. Le statut est un suivi local ; passer à « Envoyé » n’envoie aucun document.
+- **Duplication** : conserver les prix d’origine, ou recalculer les lignes de matériel référencées avec le catalogue chargé et leur majoration d’origine. Les références absentes, sans prix ou dont l’unité a changé conservent leurs prix, avec un compteur avant validation. Les lignes libres, forfaits et main-d’œuvre restent inchangés. Un nouveau numéro et la date du jour sont attribués, le statut revient à Brouillon ; le devis d’origine reste intact.
+- **Sauvegarde** : Données exporte entreprises, logos, clients, devis et leurs prix, références personnelles, favoris, kits et forfaits dans un JSON. La restauration fonctionne dans Android et le navigateur ; le fichier est validé avant une confirmation indiquant son contenu. Elle remplace les données locales, sans fusion, et annulation ou échec de stockage conservent les données précédentes. Les photos en cache et la base fournisseur téléchargée ne sont pas incluses ; recharger le catalogue sur le nouvel appareil. Les anciennes sauvegardes version 1 restent prises en charge.
+
+## Catalogue 123elec
 
 Le catalogue embarqué contient **6 506 fiches** issues du plan du site public de 123elec, relevées le **12 novembre 2026**. Les prix proviennent des offres EUR publiées dans les données structurées des pages de catégories et des fiches produit. Le fichier `app/src/main/assets/catalog-123elec.json` indique la couverture des prix, les pages consultées et les éventuels échecs de récupération.
 
@@ -99,7 +109,7 @@ npm test
 
 Le scénario vérifie création, prix de vente, remise, TVA mixte, sauvegarde après rechargement et isolation entre entreprises. Il produit aussi une capture mobile et un exemple de PDF dans `tmp/`. Ces vérifications ne remplacent pas les essais du service PDF Android sur appareil réel.
 
-Les tests vérifient aussi les favoris, les filtres combinés, le tri des prix, la recherche hors connexion, la reprise d’un client, les modèles de formulaire, la personnalisation par entreprise et la saisie obligatoire des prix manquants.
+Les tests vérifient aussi les favoris, les filtres combinés, le tri des prix, la recherche hors connexion, la reprise d’un client, les modèles de formulaire, la personnalisation par entreprise et la saisie obligatoire des prix manquants. `tests/productivity.cjs` couvre les kits configurés, les pièces et leur duplication, les forfaits, le suivi, les deux modes de duplication, la restauration par fichier, les annulations et erreurs de stockage. Il produit un PDF regroupé par pièce et des captures mobiles dans `tmp/`.
 
 Pour reconstruire le relevé fournisseur avec Python et `beautifulsoup4`
 

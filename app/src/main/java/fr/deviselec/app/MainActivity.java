@@ -81,6 +81,7 @@ public class MainActivity extends Activity {
                         case "/clients.js": asset = "clients.js"; mime = "application/javascript"; break;
                         case "/equipment.js": asset = "equipment.js"; mime = "application/javascript"; break;
                         case "/comparison.js": asset = "comparison.js"; mime = "application/javascript"; break;
+                        case "/productivity.js": asset = "productivity.js"; mime = "application/javascript"; break;
                         case "/equipment-specs.json": asset = "equipment-specs.json"; mime = "application/json"; break;
                         case "/quote-flow.js": asset = "quote-flow.js"; mime = "application/javascript"; break;
                         case "/flow.css": asset = "flow.css"; mime = "text/css"; break;

@@ -84,6 +84,7 @@ function renderMaterialStage() {
   $("selectionButton").onclick = showQuoteSelection;
   $("nextStage").onclick = () => changeQuoteStage(1);
   mountCatalogBrowser($("catalogBrowser"), true);
+  mountWorkTools();
   refreshSelectionSummary();
 }
 
@@ -99,6 +100,7 @@ function quoteProductLine(product) {
   return draft?.lines.find(
     (line) =>
       line.catalogId === productKey(product) &&
+      (line.room || "") === (draft.activeRoom || "") &&
       line.unit === (product.unit || "u"),
   );
 }
@@ -126,6 +128,7 @@ function quickAddProduct(product, delta = 1) {
         price: 0,
         markup: company().markup,
         vat: company().vat,
+        room: draft.activeRoom || "",
       });
       return;
     }
@@ -136,6 +139,7 @@ function quickAddProduct(product, delta = 1) {
       price: quoteProductPrice(product),
       markup: company().markup,
       vat: company().vat,
+      room: draft.activeRoom || "",
     });
   }
   storeQuote(true);
@@ -148,7 +152,7 @@ function showQuoteSelection() {
     draft.lines
       .map(
         (line, index) =>
-          `<article class="selected-line"><div>${equipmentPhoto(line)}<strong>${esc(line.label)}</strong></div>
+          `<article class="selected-line"><p class="muted">${esc(line.room || "Ensemble du chantier")}</p><div>${equipmentPhoto(line)}<strong>${esc(line.label)}</strong></div>
             <div class="row"><span>${money(line.price)} HT / ${esc(line.unit)}</span>
                 <div class="inline-quantity"><button class="secondary" data-line-delta="-1" data-index="${index}" aria-label="Diminuer ${esc(line.label)}">−</button>
                     <strong>${line.qty}</strong><button class="secondary" data-line-delta="1" data-index="${index}" aria-label="Augmenter ${esc(line.label)}">+</button></div></div>
@@ -156,13 +160,13 @@ function showQuoteSelection() {
       )
       .join("") || '<p class="empty">Votre sélection est vide.</p>'
   }</div>
-        <div class="actions"><button id="closeSelection" class="secondary">Continuer le matériel</button>
-            <button id="selectionNext">Client et chantier →</button></div>`);
+        <div class="actions"><button id="closeSelection" class="secondary">${draft.stage === 2 ? "Retour aux conditions" : "Continuer le matériel"}</button>
+            <button id="selectionNext">${draft.stage === 2 ? "Modifier le matériel" : "Client et chantier →"}</button></div>`);
   wireEquipmentPhotos($("dialog"));
   $("closeSelection").onclick = closeModal;
   $("selectionNext").onclick = () => {
     closeModal();
-    changeQuoteStage(1);
+    changeQuoteStage(draft.stage === 2 ? 0 : 1);
   };
   $("dialog")
     .querySelectorAll("[data-line-delta]")
@@ -249,6 +253,7 @@ function renderQuoteReview() {
         <button id="editQuoteClient" class="text-button">Modifier le client / chantier</button></section>
         <form id="quoteForm"><section class="card"><h2>Main-d’œuvre et conditions</h2>
             <button type="button" id="addReviewLine" class="secondary">+ Main-d’œuvre / prestation</button>
+            <button type="button" id="reviewSelection" class="text-button">Vérifier les lignes et les pièces</button>
             <div class="grid conditions-fields">${field("date", "Date du devis", draft.date, "date", "required")}
                 ${field("validity", "Validité (jours)", draft.validity, "number", 'min="1" max="365" required')}
                 ${field("discount", "Remise globale (%)", draft.discount, "number", 'min="0" max="100" step="0.1" required')}
@@ -281,21 +286,10 @@ function renderQuoteReview() {
             <button type="submit" class="secondary">Enregistrer</button><button type="button" id="pdf">Générer le PDF</button></div></form>`;
   $("editQuoteClient").onclick = () => changeQuoteStage(1);
   $("previousStage").onclick = () => changeQuoteStage(1);
+  $("reviewSelection").onclick = showQuoteSelection;
   $("addReviewLine").onclick = () => {
     capture();
-    lineModal(undefined, {
-      kind: "labor",
-      label: "Pose et raccordement",
-      qty: 1,
-      unit: "h",
-      cost: 0,
-      markup: 0,
-      price: company().rate,
-      vat: company().vat,
-      ref: "",
-      url: "",
-      checked: "",
-    });
+    openLabor();
   };
   addDurationChoices();
   addPaymentChoices();

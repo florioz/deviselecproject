@@ -97,3 +97,6 @@ body[data-quote-mode="true"] header select { min-width: 0; }
     .quote-steps button { font-size: 11px; }
     main { padding-bottom: 25px; }
 }
+/* Tools for reusable work, rooms and saved services. */
+.work-tools h2{margin-bottom:10px}.work-tools .actions{margin-top:0;align-items:center}.work-tools .grid{align-items:end}.kit-row{border:1px solid #dfe7ea;border-radius:12px;padding:14px;margin:16px 0;min-width:0}.kit-row legend{font-size:14px;font-weight:650;padding:0 6px}.kit-row label{margin:8px 0}.client-choice{display:block;text-align:left;background:#f1f7f7;color:#173846;width:100%;margin:8px 0;overflow-wrap:anywhere}.client-choice small{display:block;margin-top:5px}.work-tools button{overflow-wrap:anywhere}#quoteList select{max-width:220px}#kitForm hr{border:0;border-top:1px solid #dfe7ea;margin:20px 0}
+.work-room{display:flex;gap:8px;align-items:end}.work-room .field{flex:1;min-width:0;margin-bottom:0}.work-room>button{flex:none}.work-primary{margin:12px 0!important;display:grid;grid-template-columns:1fr 1fr}.work-primary button{padding:10px 8px;font-size:13px}.work-tools{padding:14px}.work-tools summary{font-size:12px;padding:8px 0}.work-tools .filter-details .actions{padding-bottom:8px}.material-heading h2{flex:1;min-width:145px}.material-heading.row.wrap{flex-wrap:wrap}.material-heading #addLine{text-align:left;font-size:12px;padding:4px 0}

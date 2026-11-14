@@ -183,53 +183,7 @@ function renderCompany() {
   attachCompanyHelpers(c);
 }
 function renderQuotes() {
-  delete document.body.dataset.quoteMode;
-  const list = db.quotes
-    .filter((q) => q.companyId === db.active)
-    .sort((a, b) => b.updated.localeCompare(a.updated));
-  $("main").innerHTML =
-    `<div class="row"><h1>Mes devis</h1><span class="pill">Hors connexion</span></div><p class="muted">Du premier chiffrage au document client.</p><button id="newQuote">+ Créer un devis</button><div class="card"><div class="row"><h2>${list.length} devis enregistré${list.length > 1 ? "s" : ""}</h2></div><input id="search" placeholder="Rechercher un client, un chantier…" aria-label="Rechercher un devis"><div id="quoteList"></div></div>`;
-  $("newQuote").onclick = () => {
-    if (!company()) {
-      tab = "company";
-      render();
-      toast("Commencez par créer votre entreprise");
-      return;
-    }
-    newQuote();
-  };
-  function results() {
-    let s = $("search").value.toLowerCase();
-    $("quoteList").innerHTML =
-      list
-        .filter((q) =>
-          (q.client + q.title + q.number).toLowerCase().includes(s),
-        )
-        .map(
-          (q) =>
-            `<div class="line"><div class="row"><div><strong>${esc(q.client || "Brouillon sans client")}</strong><div class="muted">${esc(q.number)} · ${esc(q.title)}</div></div><strong>${money(totals(q).ttc)}</strong></div><div class="actions"><button class="secondary" data-open="${q.id}">Ouvrir</button><button class="secondary" data-copy="${q.id}">Dupliquer</button></div></div>`,
-        )
-        .join("") ||
-      '<div class="empty">Vos prochains devis apparaîtront ici.</div>';
-    document.querySelectorAll("[data-open]").forEach(
-      (b) =>
-        (b.onclick = () => {
-          draft = structuredClone(
-            db.quotes.find((q) => q.id === b.dataset.open),
-          );
-          quoteCatalogState = null;
-          render();
-        }),
-    );
-    document.querySelectorAll("[data-copy]").forEach(
-      (b) =>
-        (b.onclick = () => {
-          newQuote(db.quotes.find((q) => q.id === b.dataset.copy));
-        }),
-    );
-  }
-  $("search").oninput = results;
-  results();
+  renderQuoteDashboard();
 }
 function newQuote(source) {
   const c = company();
@@ -253,11 +207,12 @@ function newQuote(source) {
     number: `DEV-${new Date().getFullYear()}-${String(c.nextNumber).padStart(4, "0")}`,
     date: today(),
     validity: c.validity,
-    terms: c.terms,
-    vatNote: c.vatNote,
+    terms: source ? source.terms : c.terms,
+    vatNote: source ? source.vatNote : c.vatNote,
     company: structuredClone(c),
     updated: new Date().toISOString(),
   });
+  draft.status = "Brouillon";
   draft.stage = 0;
   quoteCatalogState = null;
   tab = "quotes";
@@ -303,6 +258,7 @@ function lineModal(index, source) {
             ref: "",
             url: "",
             checked: "",
+            room: draft.activeRoom || "",
           };
   modal(
     `<h2>${index === undefined ? "Ajouter une ligne" : "Modifier la ligne"}</h2><form id="lineForm"><div class="grid">${select(
@@ -335,7 +291,11 @@ function lineModal(index, source) {
         [0, "0 %"],
       ],
       l.vat,
-    )}${field("ref", "Référence fabricant", l.ref)}${field("url", "Lien produit 123elec", l.url, "url")}${field("checked", "Date de vérification du prix", l.checked, "date")}</div><p class="muted">La majoration s’applique au prix d’achat HT. Le prix de vente reste ajustable. Vérifiez les taux de TVA selon votre chantier.</p><div class="actions"><button type="submit">Valider</button><button type="button" class="secondary" onclick="closeModal()">Annuler</button></div></form>`,
+    )}${field("room", "Pièce du chantier (facultatif)", l.room || "", "text", 'maxlength="100" list="lineRooms"')}<datalist id="lineRooms">${roomNames()
+      .map((r) => `<option value="${esc(r)}">`)
+      .join(
+        "",
+      )}</datalist>${field("ref", "Référence fabricant", l.ref)}${field("url", "Lien produit 123elec", l.url, "url")}${field("checked", "Date de vérification du prix", l.checked, "date")}</div><p class="muted">La majoration s’applique au prix d’achat HT. Le prix de vente reste ajustable. Vérifiez les taux de TVA selon votre chantier.</p><div class="actions"><button type="submit">Valider</button><button type="button" class="secondary" onclick="closeModal()">Annuler</button></div></form>`,
   );
   const calc = () => {
     $("f-price").value = round(
@@ -356,6 +316,7 @@ function lineModal(index, source) {
     ["qty", "cost", "markup", "price", "vat"].forEach(
       (k) => (v[k] = num(v[k])),
     );
+    v.room = v.room.trim();
     if (index !== undefined) draft.lines[index] = v;
     else draft.lines.push(v);
     storeQuote(true);
@@ -379,13 +340,21 @@ function lineModal(index, source) {
 }
 function renderSettings() {
   $("main").innerHTML =
-    `<h1>Mes données</h1><section class="card"><h2>Stockage local</h2><p>Les profils, catalogues et devis sont conservés sur ce téléphone. Exportez régulièrement une sauvegarde et avant de désinstaller l’application.</p><p class="muted">${db.companies.length} entreprise(s) · ${db.quotes.length} devis · ${db.catalog.length} référence(s)</p><div class="actions"><button id="backup">Exporter la sauvegarde</button><button id="restore" class="secondary">Restaurer</button></div></section><section class="card"><h2>Deviselec · 0.5.0</h2><p class="muted">Profils d’entreprise locaux : pas de compte en ligne ni de synchronisation entre téléphones dans cette version. Le PDF s’enregistre depuis la fenêtre Android « Enregistrer au format PDF ».</p></section>`;
+    `<h1>Mes données</h1><section class="card"><h2>Stockage local</h2><p>Les profils, catalogues et devis sont conservés sur ce téléphone. Exportez régulièrement une sauvegarde et avant de désinstaller l’application.</p><p class="muted">${db.companies.length} entreprise(s) · ${db.quotes.length} devis · ${db.catalog.length} référence(s) · ${(db.clients || []).length} clients · ${(db.workKits || []).length} kits · ${(db.laborPresets || []).length} forfaits</p><p class="muted">La sauvegarde comprend les logos, clients, devis avec leurs pièces et prix enregistrés, références personnelles, favoris, kits et forfaits. Les photos du catalogue et sa base fournisseur actualisée ne sont pas incluses : elles peuvent être rechargées depuis Catalogue.</p><div class="actions"><button id="backup">Exporter la sauvegarde</button><button id="restore" class="secondary">Restaurer</button></div></section><section class="card"><h2>Deviselec · 0.6.0</h2><p class="muted">Profils d’entreprise locaux : pas de compte en ligne ni de synchronisation entre téléphones dans cette version. Le PDF s’enregistre depuis la fenêtre Android « Enregistrer au format PDF ».</p></section>`;
   $("backup").onclick = () => {
-    if (window.Android) Android.backup(JSON.stringify(db));
+    const backup = JSON.stringify({
+      ...db,
+      backupInfo: {
+        app: "Deviselec",
+        version: "0.6.0",
+        exportedAt: new Date().toISOString(),
+      },
+    });
+    if (window.Android) Android.backup(backup);
     else {
       let a = document.createElement("a");
       a.href = URL.createObjectURL(
-        new Blob([JSON.stringify(db)], { type: "application/json" }),
+        new Blob([backup], { type: "application/json" }),
       );
       a.download = "deviselec-sauvegarde.json";
       a.click();
@@ -394,37 +363,27 @@ function renderSettings() {
   };
   $("restore").onclick = () => {
     if (window.Android) Android.restore();
-    else toast("Restauration disponible dans l’application Android");
+    else {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "application/json,.json";
+      input.onchange = async () => {
+        const file = input.files[0];
+        if (!file) return;
+        if (file.size > 20 * 1024 * 1024)
+          return alert("Sauvegarde trop volumineuse (20 Mo maximum).");
+        try {
+          restoreData(await file.text());
+        } catch (e) {
+          alert("Impossible de lire ce fichier.");
+        }
+      };
+      input.click();
+    }
   };
 }
 function restoreData(text) {
-  try {
-    const v = JSON.parse(text);
-    if (
-      v.version !== 1 ||
-      !Array.isArray(v.companies) ||
-      !Array.isArray(v.quotes) ||
-      !Array.isArray(v.catalog)
-    )
-      throw Error();
-    if (
-      v.companies.some((c) => !c.id || typeof c.name !== "string") ||
-      v.quotes.some((q) => !q.id || !Array.isArray(q.lines) || !q.company)
-    )
-      throw Error();
-    if (!confirm("Remplacer toutes les données locales par cette sauvegarde ?"))
-      return;
-    db = v;
-    initializeClients();
-    if (!company()) db.active = db.companies[0]?.id || null;
-    if (save()) {
-      draft = null;
-      render();
-      toast("Sauvegarde restaurée");
-    }
-  } catch (e) {
-    alert("Sauvegarde invalide ou incompatible.");
-  }
+  return restoreBackup(text);
 }
 function pdfHtml(q) {
   const c = q.company,
@@ -433,7 +392,16 @@ function pdfHtml(q) {
     expiry = new Date(date);
   expiry.setDate(date.getDate() + num(q.validity));
   const br = (s) => esc(s).replace(/\n/g, "<br>");
-  return `<!doctype html><html lang="fr"><meta charset="UTF-8"><title>${esc(q.number)}</title><style>@page{size:A4;margin:14mm}body{font:11px Arial,sans-serif;color:#233a46;line-height:1.5}h1{font-size:30px;letter-spacing:2px;color:#087f77;margin:0}h2{font-size:15px;margin:0 0 8px}p{margin:5px 0}.head{width:100%;border-bottom:3px solid #087f77;padding-bottom:16px}.head td{vertical-align:top}.head td:last-child{text-align:right}.logo{max-width:150px;max-height:65px;margin-bottom:8px}.boxes{width:100%;margin:20px 0}.boxes td{width:50%;vertical-align:top;padding:12px;background:#f2f6f7}.lines{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:15px}.lines th{background:#173846;color:white;text-align:left;padding:9px 6px;font-size:10px}.lines td{border-bottom:1px solid #dce5e9;padding:9px 6px;vertical-align:top;overflow-wrap:anywhere}.lines tr{break-inside:avoid}.lines thead{display:table-header-group}.right{text-align:right}.totals{margin:18px 0 18px auto;width:48%;break-inside:avoid}.totals td{padding:5px}.grand{background:#173846;color:white;font-weight:bold;font-size:15px}.section{margin:18px 0;break-inside:avoid}.muted{color:#637984;font-size:10px}.sign{border:1px solid #cddadd;padding:12px;min-height:95px;break-inside:avoid}.footer{border-top:1px solid #cddadd;margin-top:20px;padding-top:9px;font-size:9px;color:#637984;overflow-wrap:anywhere}</style><body><table class="head"><tr><td>${c.logo ? `<img class="logo" src="${esc(c.logo)}"><br>` : ""}<h2>${esc(c.name)}</h2>${br(c.address)}<p>${[c.phone, c.email].filter(Boolean).map(esc).join(' &#183; ')}</p></td><td><h1>DEVIS</h1><strong>${esc(q.number)}</strong><p>Émis le ${date.toLocaleDateString("fr-FR")}</p><p>Valable jusqu’au ${expiry.toLocaleDateString("fr-FR")}</p></td></tr></table><table class="boxes"><tr><td><h2>Client</h2><strong>${esc(q.client)}</strong><br>${br(q.clientAddress)}<p>${esc(q.email)}</p></td><td><h2>Chantier</h2><strong>${esc(q.title)}</strong><p>${br(q.site || q.clientAddress)}</p></td></tr></table><table class="lines"><colgroup><col style="width:43%"><col style="width:10%"><col style="width:9%"><col style="width:14%"><col style="width:9%"><col style="width:15%"></colgroup><thead><tr><th>Désignation</th><th>Qté</th><th>Unité</th><th>P.U. HT</th><th>TVA</th><th>Total HT</th></tr></thead><tbody>${q.lines.map((l) => `<tr><td><strong>${esc(l.label)}</strong>${l.ref ? `<br><span class="muted">Réf. ${esc(l.ref)}</span>` : ""}</td><td>${l.qty}</td><td>${esc(l.unit)}</td><td>${money(l.price)}</td><td>${l.vat} %</td><td class="right">${money(round(l.qty * l.price))}</td></tr>`).join("")}</tbody></table><table class="totals"><tr><td>Sous-total HT</td><td class="right">${money(t.base)}</td></tr>${q.discount ? `<tr><td>Remise ${q.discount} %</td><td class="right">− ${money(t.discount)}</td></tr>` : ""}<tr><td>Total HT</td><td class="right">${money(t.ht)}</td></tr>${Object.entries(
+  return `<!doctype html><html lang="fr"><meta charset="UTF-8"><title>${esc(q.number)}</title><style>@page{size:A4;margin:14mm}body{font:11px Arial,sans-serif;color:#233a46;line-height:1.5}h1{font-size:30px;letter-spacing:2px;color:#087f77;margin:0}h2{font-size:15px;margin:0 0 8px}p{margin:5px 0}.head{width:100%;border-bottom:3px solid #087f77;padding-bottom:16px}.head td{vertical-align:top}.head td:last-child{text-align:right}.logo{max-width:150px;max-height:65px;margin-bottom:8px}.boxes{width:100%;margin:20px 0}.boxes td{width:50%;vertical-align:top;padding:12px;background:#f2f6f7}.lines{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:15px}.lines th{background:#173846;color:white;text-align:left;padding:9px 6px;font-size:10px}.lines td{border-bottom:1px solid #dce5e9;padding:9px 6px;vertical-align:top;overflow-wrap:anywhere}.lines tr{break-inside:avoid}.room-heading td{background:#e4f2ef;color:#086b64;font-size:12px}.room-heading{break-after:avoid}.lines thead{display:table-header-group}.right{text-align:right}.totals{margin:18px 0 18px auto;width:48%;break-inside:avoid}.totals td{padding:5px}.grand{background:#173846;color:white;font-weight:bold;font-size:15px}.section{margin:18px 0;break-inside:avoid}.muted{color:#637984;font-size:10px}.sign{border:1px solid #cddadd;padding:12px;min-height:95px;break-inside:avoid}.footer{border-top:1px solid #cddadd;margin-top:20px;padding-top:9px;font-size:9px;color:#637984;overflow-wrap:anywhere}</style><body><table class="head"><tr><td>${c.logo ? `<img class="logo" src="${esc(c.logo)}"><br>` : ""}<h2>${esc(c.name)}</h2>${br(c.address)}<p>${[c.phone, c.email].filter(Boolean).map(esc).join(" &#183; ")}</p></td><td><h1>DEVIS</h1><strong>${esc(q.number)}</strong><p>Émis le ${date.toLocaleDateString("fr-FR")}</p><p>Valable jusqu’au ${expiry.toLocaleDateString("fr-FR")}</p></td></tr></table><table class="boxes"><tr><td><h2>Client</h2><strong>${esc(q.client)}</strong><br>${br(q.clientAddress)}<p>${esc(q.email)}</p></td><td><h2>Chantier</h2><strong>${esc(q.title)}</strong><p>${br(q.site || q.clientAddress)}</p></td></tr></table><table class="lines"><colgroup><col style="width:43%"><col style="width:10%"><col style="width:9%"><col style="width:14%"><col style="width:9%"><col style="width:15%"></colgroup><thead><tr><th>Désignation</th><th>Qté</th><th>Unité</th><th>P.U. HT</th><th>TVA</th><th>Total HT</th></tr></thead><tbody>${orderedQuoteLines(
+    q,
+  )
+    .map(
+      (l, i, lines) =>
+        `${(i === 0 || (lines[i - 1].room || "") !== (l.room || "")) && roomNames(q).length ? `<tr class="room-heading"><td colspan="6"><strong>${esc(l.room || "Ensemble du chantier")}</strong></td></tr>` : ""}<tr><td><strong>${esc(l.label)}</strong>${l.ref ? `<br><span class="muted">Réf. ${esc(l.ref)}</span>` : ""}</td><td>${l.qty}</td><td>${esc(l.unit)}</td><td>${money(l.price)}</td><td>${l.vat} %</td><td class="right">${money(round(l.qty * l.price))}</td></tr>`,
+    )
+    .join(
+      "",
+    )}</tbody></table><table class="totals"><tr><td>Sous-total HT</td><td class="right">${money(t.base)}</td></tr>${q.discount ? `<tr><td>Remise ${q.discount} %</td><td class="right">− ${money(t.discount)}</td></tr>` : ""}<tr><td>Total HT</td><td class="right">${money(t.ht)}</td></tr>${Object.entries(
     t.groups,
   )
     .map(

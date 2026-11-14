@@ -2,7 +2,7 @@
 
 let clientReturnQuote = null;
 
-function initializeClients() {
+function initializeClients(persist = true) {
   if (!Array.isArray(db.clients)) db.clients = [];
   let changed = false;
   for (const quote of db.quotes) {
@@ -27,7 +27,7 @@ function initializeClients() {
       changed = true;
     }
   }
-  if (changed) save();
+  if (changed && persist) save();
 }
 
 function companyClients() {
