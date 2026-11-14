@@ -112,7 +112,7 @@ function renderClients() {
   $("main").innerHTML =
     `<div class="row"><h1>Mes clients</h1><button id="newClient">+ Nouveau client</button></div>
         <section class="card"><label for="clientSearch">Rechercher un client</label>
-            <input type="search" id="clientSearch" placeholder="Nom, e-mail, adresse…"><div id="clientList"></div></section>`;
+            <input type="search" id="clientSearch" placeholder="Nom, e-mail, adresse…"><div id="clientList" class="record-list"></div></section>`;
   $("newClient").onclick = () => {
     if (!company()) {
       tab = "company";
@@ -123,18 +123,12 @@ function renderClients() {
     renderClientForm();
   };
   function results() {
-    const search = normalizeSearch($("clientSearch").value);
     $("clientList").innerHTML =
-      companyClients()
-        .filter((client) =>
-          normalizeSearch(
-            [client.name, client.address, client.email, client.phone].join(" "),
-          ).includes(search),
-        )
+      searchClients($("clientSearch").value)
         .map(
           (
             client,
-          ) => `<article class="line row wrap"><div><h3>${esc(client.name)}</h3>
+          ) => `<article class="client-card record-card row wrap"><div><h3>${esc(client.name)}</h3>
                 <p class="muted">${esc(client.address)}<br>${esc(client.email)} ${esc(client.phone)}</p></div>
                 <button class="secondary" data-client="${esc(client.id)}">Modifier</button></article>`,
         )

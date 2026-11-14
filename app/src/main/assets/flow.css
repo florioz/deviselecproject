@@ -855,12 +855,12 @@ button:disabled {
 #kitSelectedRows input {
   max-width: 200px;
 }
-#quoteList {
+.record-list {
   display: grid;
   gap: 16px;
   margin-top: 18px;
 }
-.quote-card {
+.record-card {
   padding: 18px;
   border: 1px solid #c7d8df;
   border-left: 4px solid #087f77;
@@ -868,20 +868,28 @@ button:disabled {
   background: #f8fbfc;
   box-shadow: 0 3px 10px #17384608;
 }
-.quote-card:nth-child(even) {
+.record-card:nth-child(even) {
   background: #eaf3f6;
   border-left-color: #527c91;
 }
 .quote-card > .row > div > strong {
   font-size: 16px;
 }
-.quote-card .secondary {
+.record-card .secondary {
   background: #fff;
   border: 1px solid #c6d6de;
 }
 .quote-card .quote-status {
   display: inline-block;
 }
-.quote-card .muted {
+.record-card .muted {
   line-height: 1.6;
+}
+
+.client-card h3 {
+  margin: 0 0 10px;
+}
+.client-card > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }

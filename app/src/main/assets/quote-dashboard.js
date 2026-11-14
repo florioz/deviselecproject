@@ -83,7 +83,7 @@ function renderQuotes() {
         ["totalDown", "Montant TTC décroissant"],
       ],
       "updated",
-    )}</div><button class="text-button" id="clearQuoteFilters">Effacer les filtres</button></details><p id="quoteResultCount" class="muted"></p><div id="quoteList"></div></section>`;
+    )}</div><button class="text-button" id="clearQuoteFilters">Effacer les filtres</button></details><p id="quoteResultCount" class="muted"></p><div id="quoteList" class="record-list"></div></section>`;
   $("newQuote").onclick = () => {
     if (!company()) {
       tab = "company";
@@ -130,7 +130,7 @@ function renderQuotes() {
       found
         .map(
           (q) =>
-            `<article class="quote-card"><div class="row wrap"><div><strong>${esc(q.client || "Brouillon sans client")}</strong><p class="muted">${esc(q.number)}${q.revision ? " · Version " + q.revision : ""} · ${esc(q.date)}<br>${esc(q.title)}</p></div><strong>${money(totals(q).ttc)}</strong></div><span class="pill quote-status">${esc(q.status || "Brouillon")}${q.locked ? " · Verrouillé" : ""}</span><div class="actions"><button class="secondary" data-open="${esc(q.id)}">Ouvrir</button><button class="secondary" data-copy="${esc(q.id)}">Dupliquer</button></div></article>`,
+            `<article class="quote-card record-card"><div class="row wrap"><div><strong>${esc(q.client || "Brouillon sans client")}</strong><p class="muted">${esc(q.number)}${q.revision ? " · Version " + q.revision : ""} · ${esc(q.date)}<br>${esc(q.title)}</p></div><strong>${money(totals(q).ttc)}</strong></div><span class="pill quote-status">${esc(q.status || "Brouillon")}${q.locked ? " · Verrouillé" : ""}</span><div class="actions"><button class="secondary" data-open="${esc(q.id)}">Ouvrir</button><button class="secondary" data-copy="${esc(q.id)}">Dupliquer</button></div></article>`,
         )
         .join("") ||
       '<p class="empty">Aucun devis ne correspond à ces critères.</p>';

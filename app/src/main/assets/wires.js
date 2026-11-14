@@ -15,11 +15,6 @@ const WIRE_TYPES = {
 };
 function wireChoiceLabel(key, value) {
   switch (key) {
-    case "shield":
-      return (
-        { none: "Non blindé (indiqué)", shielded: "Blindé (indiqué)" }[value] ||
-        value
-      );
     case "length":
       return value + " m";
     case "diameter":
@@ -28,8 +23,6 @@ function wireChoiceLabel(key, value) {
       return WIRE_TYPES[value] || value;
     case "section":
       return value.replace(".", ",") + " mm²";
-    case "earth":
-      return value === "G" ? "G · avec vert/jaune" : "X · sans vert/jaune";
     case "pack":
       return (
         {
