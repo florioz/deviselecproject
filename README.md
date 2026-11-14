@@ -12,7 +12,7 @@ Le sélecteur de logo et l’aperçu des devis sont accessibles dans le navigate
 
 ### Application Android
 
-Le fichier `livraison/Deviselec-0.7.1-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
+Le fichier `livraison/Deviselec-0.7.2-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
 
 1. Créer un profil dans **Entreprise** : identité, adresse, logo, tarifs, TVA et conditions.
 2. Dans **Clients**, enregistrer les coordonnées des clients de l’entreprise. Les clients des anciens devis sont repris automatiquement dans ce carnet.
@@ -105,7 +105,11 @@ Coque Android Java et interface HTML/CSS/JavaScript embarquée dans WebView. L�
 
 Les modules `kits.js`, `quote-dashboard.js`, `backup.js` et `pdf.js` regroupent respectivement les kits, le suivi et la duplication des devis, la restauration, et l’impression. `productivity.js` conserve les pièces, les réglages de prix/TVA et les forfaits. `base.css` contient les styles communs et `flow.css` les écrans métier et leurs adaptations mobiles. L’ordre de chargement est défini dans `index.html`.
 
-`recovery.js` gère l’historique IndexedDB et les exports de fichiers. `quote-safety.js` gère les avertissements, les changements de statut et la consultation verrouillée. `quote-insights.js` regroupe la liste de commande et l’estimation de rentabilité. `wires.js` extrait les caractéristiques des fils et câbles et gère leurs filtres. Le scénario `tests/safety.cjs` vérifie ces parcours, les versions, la récupération après erreur et les documents de 151 lignes.
+`recovery.js` gère l’historique IndexedDB et les exports de fichiers. `quote-safety.js` gère les avertissements, les changements de statut et la consultation verrouillée. `quote-insights.js` regroupe la liste de commande et l’estimation de rentabilité. `wires.js` gère les filtres affichés des fils et câbles. Le scénario `tests/safety.cjs` vérifie ces parcours, les versions, la récupération après erreur et les documents de 151 lignes.
+
+`kit-model.js` contient les modèles et calculs des kits, tandis que `kits.js` gère leurs écrans. `wire-model.js` extrait les caractéristiques des conducteurs et applique leurs critères, tandis que `wires.js` construit les filtres affichés.
+
+Les ressources statiques sont déclarées dans `app/src/main/assets/asset-routes.json`, utilisé par `AppAssets.java`, l’aperçu PC et le serveur commun des tests. Pour ajouter un script, l’inclure dans `index.html` et dans ce registre. `npm run check` vérifie les fichiers, leurs types MIME, le chargement des scripts et la syntaxe de l’application. Ce contrôle est également exécuté par `npm test`.
 
 Java 17 ou 21 et SDK Android 36 requis. Définir `ANDROID_HOME` ou `sdk.dir` dans `local.properties`, puis :
 

@@ -1,0 +1,98 @@
+{
+  "/": [
+    "index.html",
+    "text/html"
+  ],
+  "/kits.js": [
+    "kits.js",
+    "application/javascript"
+  ],
+  "/quote-dashboard.js": [
+    "quote-dashboard.js",
+    "application/javascript"
+  ],
+  "/backup.js": [
+    "backup.js",
+    "application/javascript"
+  ],
+  "/pdf.js": [
+    "pdf.js",
+    "application/javascript"
+  ],
+  "/base.css": [
+    "base.css",
+    "text/css"
+  ],
+  "/recovery.js": [
+    "recovery.js",
+    "application/javascript"
+  ],
+  "/quote-insights.js": [
+    "quote-insights.js",
+    "application/javascript"
+  ],
+  "/quote-safety.js": [
+    "quote-safety.js",
+    "application/javascript"
+  ],
+  "/wires.js": [
+    "wires.js",
+    "application/javascript"
+  ],
+  "/app.js": [
+    "app.js",
+    "application/javascript"
+  ],
+  "/catalog.js": [
+    "catalog.js",
+    "application/javascript"
+  ],
+  "/form-helpers.js": [
+    "form-helpers.js",
+    "application/javascript"
+  ],
+  "/clients.js": [
+    "clients.js",
+    "application/javascript"
+  ],
+  "/equipment.js": [
+    "equipment.js",
+    "application/javascript"
+  ],
+  "/comparison.js": [
+    "comparison.js",
+    "application/javascript"
+  ],
+  "/productivity.js": [
+    "productivity.js",
+    "application/javascript"
+  ],
+  "/equipment-specs.json": [
+    "equipment-specs.json",
+    "application/json"
+  ],
+  "/quote-flow.js": [
+    "quote-flow.js",
+    "application/javascript"
+  ],
+  "/flow.css": [
+    "flow.css",
+    "text/css"
+  ],
+  "/equipment-images.json": [
+    "equipment-images.json",
+    "application/json"
+  ],
+  "/catalog-123elec.json": [
+    "catalog-123elec.json",
+    "application/json"
+  ],
+  "/kit-model.js": [
+    "kit-model.js",
+    "application/javascript"
+  ],
+  "/wire-model.js": [
+    "wire-model.js",
+    "application/javascript"
+  ]
+}

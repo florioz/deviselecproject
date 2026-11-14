@@ -14,18 +14,20 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri[]> logoCallback;
     private WebView web, printWeb;
     private ProductImageCache productImages;
+    private AppAssets appAssets;
     private String backup;
     private boolean exportPending;
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         productImages = new ProductImageCache(getCacheDir());
+        try {
+            appAssets = new AppAssets(readAssetText("asset-routes.json"));
+        } catch (Exception error) {
+            throw new IllegalStateException("Ressources embarquées inaccessibles", error);
+        }
         if (catalogUpdater == null) {
-            try (java.io.InputStream input = getAssets().open("catalog-123elec.json")) {
-                java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
-                byte[] buffer = new byte[16384];
-                int count;
-                while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
-                catalogUpdater = new CatalogUpdater(getFilesDir(), output.toString("UTF-8"), null);
+            try {
+                catalogUpdater = new CatalogUpdater(getFilesDir(), readAssetText("catalog-123elec.json"), null);
             } catch (Exception e) { throw new IllegalStateException("Catalogue embarqué inaccessible", e); }
         }
         web = new WebView(this);
@@ -72,33 +74,9 @@ public class MainActivity extends Activity {
                                 catalogUpdater.status().getBytes(StandardCharsets.UTF_8)));
                         }
                     } catch (Exception error) { return new WebResourceResponse("text/plain", "UTF-8", null); }
-                    String asset;
-                    String mime;
-                    switch (path) {
-                        case "/": asset = "index.html"; mime = "text/html"; break;
-                        case "/kits.js": asset = "kits.js"; mime = "application/javascript"; break;
-                        case "/quote-dashboard.js": asset = "quote-dashboard.js"; mime = "application/javascript"; break;
-                        case "/backup.js": asset = "backup.js"; mime = "application/javascript"; break;
-                        case "/pdf.js": asset = "pdf.js"; mime = "application/javascript"; break;
-                        case "/base.css": asset = "base.css"; mime = "text/css"; break;
-                        case "/recovery.js": asset = "recovery.js"; mime = "application/javascript"; break;
-                        case "/quote-insights.js": asset = "quote-insights.js"; mime = "application/javascript"; break;
-                        case "/quote-safety.js": asset = "quote-safety.js"; mime = "application/javascript"; break;
-                        case "/wires.js": asset = "wires.js"; mime = "application/javascript"; break;
-                        case "/app.js": asset = "app.js"; mime = "application/javascript"; break;
-                        case "/catalog.js": asset = "catalog.js"; mime = "application/javascript"; break;
-                        case "/form-helpers.js": asset = "form-helpers.js"; mime = "application/javascript"; break;
-                        case "/clients.js": asset = "clients.js"; mime = "application/javascript"; break;
-                        case "/equipment.js": asset = "equipment.js"; mime = "application/javascript"; break;
-                        case "/comparison.js": asset = "comparison.js"; mime = "application/javascript"; break;
-                        case "/productivity.js": asset = "productivity.js"; mime = "application/javascript"; break;
-                        case "/equipment-specs.json": asset = "equipment-specs.json"; mime = "application/json"; break;
-                        case "/quote-flow.js": asset = "quote-flow.js"; mime = "application/javascript"; break;
-                        case "/flow.css": asset = "flow.css"; mime = "text/css"; break;
-                        case "/equipment-images.json": asset = "equipment-images.json"; mime = "application/json"; break;
-                        default: return new WebResourceResponse("text/plain", "UTF-8", null);
-                    }
-                    try { return new WebResourceResponse(mime, "UTF-8", getAssets().open(asset)); }
+                    AppAssets.Resource resource = appAssets.find(path);
+                    if (resource == null) return new WebResourceResponse("text/plain", "UTF-8", null);
+                    try { return new WebResourceResponse(resource.mimeType, "UTF-8", getAssets().open(resource.filename)); }
                     catch (Exception e) { return new WebResourceResponse("text/plain", "UTF-8", null); }
                 }
                 return new WebResourceResponse("text/plain", "UTF-8", null);
@@ -115,6 +93,16 @@ public class MainActivity extends Activity {
         setContentView(root);
         web.loadUrl("https://deviselec.local/");
     }
+    private String readAssetText(String filename) throws java.io.IOException {
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                new java.io.InputStreamReader(getAssets().open(filename), StandardCharsets.UTF_8))) {
+            StringBuilder content = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) content.append(line).append('\n');
+            return content.toString();
+        }
+    }
+
     class Bridge {
         @JavascriptInterface public void updateCatalog() { catalogUpdater.start(); }
         @JavascriptInterface public void cancelCatalogUpdate() { catalogUpdater.cancel(); }

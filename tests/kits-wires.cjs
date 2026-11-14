@@ -1,32 +1,8 @@
+const { createTestServer } = require("./helpers.cjs");
 const { chromium } = require("playwright");
-const fs = require("node:fs"),
-  http = require("node:http"),
-  path = require("node:path"),
-  assert = require("node:assert/strict");
+const assert = require("node:assert/strict");
 (async () => {
-  const assets = path.join(__dirname, "../app/src/main/assets");
-  const server = http.createServer((req, res) => {
-    const name =
-      new URL(req.url, "http://localhost").pathname.slice(1) || "index.html";
-    if (
-      !/^[a-z0-9.-]+$/.test(name) ||
-      !fs.existsSync(path.join(assets, name))
-    ) {
-      res.writeHead(404).end();
-      return;
-    }
-    res.setHeader(
-      "Content-Type",
-      name.endsWith(".js")
-        ? "application/javascript"
-        : name.endsWith(".css")
-          ? "text/css"
-          : name.endsWith(".json")
-            ? "application/json"
-            : "text/html",
-    );
-    res.end(fs.readFileSync(path.join(assets, name)));
-  });
+  const server = createTestServer();
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const browser = await chromium.launch({
     headless: true,
@@ -152,8 +128,10 @@ const fs = require("node:fs"),
     await socket.locator("[data-pick]").click();
     assert.ok(await page.locator("#kitQuickConfirm").isVisible());
     const confirmation = await page.locator("#kitQuickConfirm").boundingBox();
-    assert.ok(confirmation.y >= 0 && confirmation.y + confirmation.height <= 844);
-    await page.screenshot({path:"tmp/kit-quick-confirm-mobile.png"});
+    assert.ok(
+      confirmation.y >= 0 && confirmation.y + confirmation.height <= 844,
+    );
+    await page.screenshot({ path: "tmp/kit-quick-confirm-mobile.png" });
     assert.match(await page.locator("#kitPickedSummary").textContent(), /3 u/);
     await page.locator("#continueKitProducts").click();
     assert.equal(await page.locator("#kitQuickConfirm").isVisible(), false);

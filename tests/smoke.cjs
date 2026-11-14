@@ -1,22 +1,27 @@
+const { createTestServer } = require("./helpers.cjs");
+const { assetsPath } = require("../tools/assets.cjs");
 const { chromium } = require('playwright');
 const fs = require('node:fs');
-const http = require('node:http');
-const assert = require('node:assert/strict');
 const path = require('node:path');
+const assert = require('node:assert/strict');
 
 (async () => {
-    const assets = path.join(__dirname, '../app/src/main/assets');
     let updateState = { running: false, message: 'Prêt' };
     let updatedCatalog;
     let updateMode = 'success';
-    const server = http.createServer((request, response) => {
-        const name = new URL(request.url, 'http://localhost').pathname.slice(1) || 'index.html';
-        if (name === 'catalog-status.json') { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify(updateState)); return; }
-        const allowed = ['wires.js', 'quote-safety.js', 'quote-insights.js', 'recovery.js', 'base.css', 'pdf.js', 'backup.js', 'quote-dashboard.js', 'kits.js', 'index.html', 'flow.css', 'app.js', 'catalog.js', 'form-helpers.js', 'clients.js', 'equipment.js', 'comparison.js', 'productivity.js', 'equipment-specs.json', 'quote-flow.js', 'catalog-123elec.json', 'equipment-images.json'];
-        if (!allowed.includes(name) && !/^equipment-images\/[a-z0-9-]+\.(jpg|jpeg|png|webp)$/.test(name)) { response.writeHead(404).end(); return; }
-        const mime = name.endsWith('.js') ? 'application/javascript' : name.endsWith('.json') ? 'application/json' : name.endsWith('.css') ? 'text/css' : name.endsWith('.html') ? 'text/html' : 'image/jpeg';
-        response.setHeader('Content-Type', mime);
-        response.end(name === 'catalog-123elec.json' && updatedCatalog ? JSON.stringify(updatedCatalog) : fs.readFileSync(path.join(assets, name)));
+    const server = createTestServer((request, response) => {
+        const pathname = new URL(request.url, 'http://localhost').pathname;
+        if (pathname === '/catalog-status.json') {
+            response.setHeader('Content-Type', 'application/json');
+            response.end(JSON.stringify(updateState));
+            return true;
+        }
+        if (pathname === '/catalog-123elec.json' && updatedCatalog) {
+            response.setHeader('Content-Type', 'application/json');
+            response.end(JSON.stringify(updatedCatalog));
+            return true;
+        }
+        return false;
     });
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const address = `http://127.0.0.1:${server.address().port}`;
@@ -199,7 +204,7 @@ const path = require('node:path');
         await page.exposeFunction('startMockUpdate', () => {
             updateState = { running: true, message: 'Actualisation…', done: 1, total: 2, updated: 0 };
             if (updateMode === 'success') setTimeout(() => {
-                updatedCatalog = JSON.parse(fs.readFileSync(path.join(assets, 'catalog-123elec.json'), 'utf8'));
+                updatedCatalog = JSON.parse(fs.readFileSync(path.join(assetsPath, 'catalog-123elec.json'), 'utf8'));
                 const product = updatedCatalog.products.find(product => product.ref === '600335'); product.cost = 3.5;
                 updateState = { running: false, message: 'Catalogue enregistré', done: 2, total: 2, updated: 1 };
             }, 200);
