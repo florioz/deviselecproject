@@ -12,7 +12,7 @@ Le sélecteur de logo et l’aperçu des devis sont accessibles dans le navigate
 
 ### Application Android
 
-Le fichier `livraison/Deviselec-0.6.0-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
+Le fichier `livraison/Deviselec-0.6.1-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
 
 1. Créer un profil dans **Entreprise** : identité, adresse, logo, tarifs, TVA et conditions.
 2. Dans **Clients**, enregistrer les coordonnées des clients de l’entreprise. Les clients des anciens devis sont repris automatiquement dans ce carnet.
@@ -34,8 +34,10 @@ Le fichier `livraison/Deviselec-0.6.0-debug.apk` est une version de test signée
 
 ## Préparer et suivre les travaux
 
+Sur mobile, les onglets et étapes défilent horizontalement avec des boutons de largeur suffisante. Les choix prédéfinis utilisent des sélecteurs. Le clavier s’ouvre pour une recherche ou après le choix explicite d’une saisie personnalisée. Dans Conditions et PDF, Prix et TVA permet de modifier les prix et les taux par ligne, ou d’appliquer un taux à toutes les lignes.
+
 - **Pièces** : dans Matériel, choisir la pièce de destination avant les ajouts. Le volet « Gérer les pièces et mes kits » permet de dupliquer ou renommer la pièce active. Une duplication reprend les lignes, quantités et prix et augmente le total. Les détails d’une ligne permettent de changer sa pièce. Le PDF regroupe les lignes par pièce, avec une section pour l’ensemble du chantier.
-- **Kits** : les modèles Prise encastrée, Point lumineux et Remplacement de tableau demandent de choisir les références et de vérifier les quantités et durées. Il est possible d’ajouter ou retirer des lignes, de saisir un prix hors catalogue, de sauvegarder le kit pour l’entreprise et de l’ajouter en plusieurs exemplaires dans une pièce. Les prix sauvegardés sont repris et restent modifiables avant ajout. Ces modèles sont des points de départ, pas des études de conformité.
+- **Kits** : composer un kit en piochant plusieurs références dans le catalogue avec photos, arbre, recherche, filtres et comparaison. Le kit affiche les références, quantités et temps de pose. Les exemples fournis contiennent des produits précis, remplaçables avant ajout. Les kits sont enregistrables par entreprise et ajoutables en plusieurs exemplaires. Les anciennes lignes de matériel sans référence se remplacent depuis le catalogue. Les prix manquants se complètent dans Conditions et PDF. Les exemples restent à adapter au chantier.
 - **Sélection réutilisable** : « Enregistrer la sélection comme kit » reprend la pièce active, ou toutes les lignes si aucune pièce n’est sélectionnée. Les quantités de la sélection deviennent les quantités d’un kit.
 - **Main-d’œuvre et forfaits** : accès depuis Matériel et Conditions et PDF. Le tarif horaire vient de l’onglet Entreprise ; les forfaits habituels peuvent être enregistrés, modifiés et supprimés pour chaque entreprise. La quantité, le prix et la TVA restent ajustables avant ajout. Les anciens devis conservent leurs valeurs.
 - **Suivi** : Mes devis affiche le statut Brouillon, Envoyé, Accepté ou Refusé, modifiable directement. La recherche se combine avec le statut et une période de dates d’émission. Tri par modification, date ou montant TTC. Le statut est un suivi local ; passer à « Envoyé » n’envoie aucun document.

@@ -15,6 +15,33 @@ function notifyField(input) {
     input.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
+function addClosedChoices(input, values, id, customLabel = 'Autre…') {
+    if (!input) return;
+    const required = input.required;
+    const choices = [...new Set([...values, input.value].filter(Boolean))];
+    const choice = document.createElement('select');
+    choice.id = id;
+    choice.required = required;
+    choice.innerHTML = '<option value="">Choisir…</option>' + choices.map(value =>
+        `<option value="${esc(value)}">${esc(value)}</option>`).join('') +
+        `<option value="__custom">${esc(customLabel)}</option>`;
+    choice.value = input.value;
+    input.before(choice);
+    input.hidden = true;
+    input.required = false;
+    input.removeAttribute('list');
+    const label = input.parentElement.querySelector('label');
+    if (label) label.htmlFor = id;
+    choice.onchange = () => {
+        const custom = choice.value === '__custom';
+        input.hidden = !custom;
+        input.required = custom && required;
+        if (custom) { input.value = ''; input.focus(); return; }
+        input.value = choice.value;
+        notifyField(input);
+    };
+}
+
 function addDurationChoices() {
     const input = $('f-validity');
     if (!input) return;
@@ -52,7 +79,8 @@ function addPaymentChoices() {
         <option value="custom">Conditions personnalisées</option>`;
     input.before(choice);
     choice.onchange = () => {
-        if (!choice.value || choice.value === 'custom') { input.focus(); return; }
+        if (!choice.value) return;
+        if (choice.value === 'custom') { input.focus(); return; }
         input.value = choice.value === 'receipt' ?
             'Paiement à la réception des travaux. Planning à convenir avec le client.' :
             `Acompte de ${choice.value} % à la commande. Solde à la réception des travaux. Planning à convenir avec le client.`;
@@ -64,7 +92,7 @@ function attachCompanyHelpers() {
     setupLogoInput();
     addDurationChoices();
     addPaymentChoices();
-    addSuggestions($('f-legal'), [
+    addClosedChoices($('f-legal'), [
         'Entreprise individuelle', 'Micro-entreprise', 'EURL', 'SARL', 'SASU', 'SAS',
     ], 'legalForms');
     $('f-name').autocomplete = 'organization';

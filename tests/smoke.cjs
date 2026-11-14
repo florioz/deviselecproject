@@ -140,7 +140,7 @@ const path = require('node:path');
         await page.locator('#chooseQuoteClient').click();
         await page.locator('#clientPickerSearch').fill('client de demonstration');
         await page.locator(`[data-choose-client="${clientId}"]`).click();
-        await page.locator('#f-title').fill('Rénovation électrique');
+        await page.locator('#quoteSubjectChoice').selectOption('Rénovation électrique');
         await page.getByRole('button', { name: 'Conditions et PDF →', exact: true }).click();
         await page.locator('#addReviewLine').click();
         await page.locator('#hourlyLabor').click();

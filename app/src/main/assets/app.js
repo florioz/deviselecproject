@@ -58,6 +58,11 @@ function select(name, label, opts, value) {
 }
 function modal(html) {
   $("dialog").innerHTML = html;
+  const heading = $("dialog").querySelector("h2");
+  if (heading) {
+    heading.tabIndex = -1;
+    heading.setAttribute("autofocus", "");
+  }
   $("dialog").showModal();
 }
 function closeModal() {
@@ -295,7 +300,7 @@ function lineModal(index, source) {
       .map((r) => `<option value="${esc(r)}">`)
       .join(
         "",
-      )}</datalist>${field("ref", "Référence fabricant", l.ref)}${field("url", "Lien produit 123elec", l.url, "url")}${field("checked", "Date de vérification du prix", l.checked, "date")}</div><p class="muted">La majoration s’applique au prix d’achat HT. Le prix de vente reste ajustable. Vérifiez les taux de TVA selon votre chantier.</p><div class="actions"><button type="submit">Valider</button><button type="button" class="secondary" onclick="closeModal()">Annuler</button></div></form>`,
+      )}</datalist>${field("ref", "Référence fabricant", l.ref)}${field("url", "Lien produit 123elec", l.url, "url")}${field("checked", "Date de vérification du prix", l.checked, "date")}</div><p class="muted">La majoration s’applique au prix d’achat HT. Le prix de vente reste ajustable. Les taux de TVA se règlent dans Conditions et PDF.</p><div class="actions"><button type="submit">Valider</button><button type="button" class="secondary" onclick="closeModal()">Annuler</button></div></form>`,
   );
   const calc = () => {
     $("f-price").value = round(
@@ -317,6 +322,7 @@ function lineModal(index, source) {
       (k) => (v[k] = num(v[k])),
     );
     v.room = v.room.trim();
+    v.needsPrice = false;
     if (index !== undefined) draft.lines[index] = v;
     else draft.lines.push(v);
     storeQuote(true);
@@ -324,6 +330,11 @@ function lineModal(index, source) {
     renderEditor();
   };
   attachLineHelpers(l);
+  if (draft.stage !== 2) {
+    const vatField = $("f-vat");
+    vatField.closest(".field").hidden = true;
+  }
+  addClosedChoices($("f-room"), roomNames(), "lineRoomChoice", "Nouvelle pièce…");
   if (index !== undefined) {
     const remove = document.createElement("button");
     remove.type = "button";
@@ -340,13 +351,13 @@ function lineModal(index, source) {
 }
 function renderSettings() {
   $("main").innerHTML =
-    `<h1>Mes données</h1><section class="card"><h2>Stockage local</h2><p>Les profils, catalogues et devis sont conservés sur ce téléphone. Exportez régulièrement une sauvegarde et avant de désinstaller l’application.</p><p class="muted">${db.companies.length} entreprise(s) · ${db.quotes.length} devis · ${db.catalog.length} référence(s) · ${(db.clients || []).length} clients · ${(db.workKits || []).length} kits · ${(db.laborPresets || []).length} forfaits</p><p class="muted">La sauvegarde comprend les logos, clients, devis avec leurs pièces et prix enregistrés, références personnelles, favoris, kits et forfaits. Les photos du catalogue et sa base fournisseur actualisée ne sont pas incluses : elles peuvent être rechargées depuis Catalogue.</p><div class="actions"><button id="backup">Exporter la sauvegarde</button><button id="restore" class="secondary">Restaurer</button></div></section><section class="card"><h2>Deviselec · 0.6.0</h2><p class="muted">Profils d’entreprise locaux : pas de compte en ligne ni de synchronisation entre téléphones dans cette version. Le PDF s’enregistre depuis la fenêtre Android « Enregistrer au format PDF ».</p></section>`;
+    `<h1>Mes données</h1><section class="card"><h2>Stockage local</h2><p>Les profils, catalogues et devis sont conservés sur ce téléphone. Exportez régulièrement une sauvegarde et avant de désinstaller l’application.</p><p class="muted">${db.companies.length} entreprise(s) · ${db.quotes.length} devis · ${db.catalog.length} référence(s) · ${(db.clients || []).length} clients · ${(db.workKits || []).length} kits · ${(db.laborPresets || []).length} forfaits</p><p class="muted">La sauvegarde comprend les logos, clients, devis avec leurs pièces et prix enregistrés, références personnelles, favoris, kits et forfaits. Les photos du catalogue et sa base fournisseur actualisée ne sont pas incluses : elles peuvent être rechargées depuis Catalogue.</p><div class="actions"><button id="backup">Exporter la sauvegarde</button><button id="restore" class="secondary">Restaurer</button></div></section><section class="card"><h2>Deviselec · 0.6.1</h2><p class="muted">Profils d’entreprise locaux : pas de compte en ligne ni de synchronisation entre téléphones dans cette version. Le PDF s’enregistre depuis la fenêtre Android « Enregistrer au format PDF ».</p></section>`;
   $("backup").onclick = () => {
     const backup = JSON.stringify({
       ...db,
       backupInfo: {
         app: "Deviselec",
-        version: "0.6.0",
+        version: "0.6.1",
         exportedAt: new Date().toISOString(),
       },
     });

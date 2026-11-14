@@ -86,163 +86,265 @@ function roomDialog(mode) {
     closeModal();
     renderEditor();
   };
+  addClosedChoices(
+    $("f-roomName"),
+    [
+      "Cuisine",
+      "Salon",
+      "Chambre 1",
+      "Chambre 2",
+      "Salle de bains",
+      "Garage",
+      "Extérieur",
+    ],
+    "roomNameChoice",
+    "Nom personnalisé…",
+  );
 }
 
-function defaultWorkKits() {
-  const material = (label, qty = 1, unit = "u") => ({
-    kind: "material",
-    label,
+function mountQuotePricing() {
+  const section = document.createElement("section");
+  section.className = "card";
+  const missing = draft.lines.some((line) => line.needsPrice);
+  section.innerHTML = `<h2>Prix et TVA</h2><div class="grid">${select(
+    "quoteVat",
+    "TVA à appliquer au devis",
+    [
+      ["", "Conserver les taux par ligne"],
+      [20, "20 %"],
+      [10, "10 %"],
+      [5.5, "5,5 %"],
+      [0, "0 %"],
+    ],
+    "",
+  )}<button type="button" class="secondary" id="applyQuoteVat">Appliquer à toutes les lignes</button></div>
+    <details id="quotePricing" ${missing ? "open" : ""}><summary>Vérifier les prix et ajuster les taux par ligne${missing ? " · Prix à compléter" : ""}</summary>
+    ${draft.lines
+      .map(
+        (
+          line,
+          index,
+        ) => `<article class="line"><strong>${esc(line.label)}</strong><p class="muted">${esc(line.room || "Ensemble du chantier")} · ${line.qty} ${esc(line.unit)}${line.ref ? " · Réf. " + esc(line.ref) : ""}</p><div class="grid">
+      <label>Prix de vente HT / ${esc(line.unit)}<input type="number" data-review-price="${index}" value="${line.needsPrice ? "" : line.price}" min="0" max="10000000" step="0.01" required></label>
+      <label>TVA<select data-review-vat="${index}">${[20, 10, 5.5, 0].map((vat) => `<option value="${vat}" ${Number(line.vat) === vat ? "selected" : ""}>${vat} %</option>`).join("")}</select></label></div></article>`,
+      )
+      .join("")}</details>`;
+  $("summary").before(section);
+  section.querySelectorAll("[data-review-price]").forEach((input) => {
+    input.oninput = () => {
+      const line = draft.lines[Number(input.dataset.reviewPrice)];
+      line.needsPrice = input.value === "" || !input.validity.valid;
+      if (!line.needsPrice) line.price = Number(input.value);
+      $("quoteForm").dispatchEvent(new Event("change"));
+    };
+  });
+  section.querySelectorAll("[data-review-vat]").forEach((input) => {
+    input.onchange = () => {
+      draft.lines[Number(input.dataset.reviewVat)].vat = Number(input.value);
+    };
+  });
+  $("applyQuoteVat").onclick = () => {
+    if ($("f-quoteVat").value === "")
+      return toast("Choisissez le taux à appliquer");
+    draft.defaultVat = Number($("f-quoteVat").value);
+    draft.lines.forEach((line) => {
+      line.vat = draft.defaultVat;
+    });
+    section.querySelectorAll("[data-review-vat]").forEach((input) => {
+      input.value = String(draft.defaultVat);
+    });
+    $("quoteForm").dispatchEvent(new Event("change"));
+  };
+}
+
+let kitSession = false;
+
+function beginKitSession() {
+  kitSession = true;
+  $("dialog").classList.add("kit-dialog");
+  $("catalogBrowser")?.replaceChildren();
+}
+$("dialog").addEventListener("close", () => {
+  if ($("dialog").open || !kitSession) return;
+  kitSession = false;
+  $("dialog").classList.remove("kit-dialog");
+  if (draft) renderEditor();
+});
+
+function kitMaterial(product, qty = 1) {
+  return {
+    ...structuredClone(product),
+    catalogId: productKey(product),
     qty,
-    unit,
-    cost: null,
-    price: "",
     markup: company().markup,
     vat: company().vat,
-  });
-  const labor = (label, qty) => ({
-    kind: "labor",
-    label,
-    qty,
-    unit: "h",
-    cost: 0,
-    markup: 0,
-    price: company().rate,
-    vat: company().vat,
-  });
-  return [
+    price:
+      product.cost == null
+        ? 0
+        : round(product.cost * (1 + company().markup / 100)),
+    needsPrice: product.cost == null,
+    room: "",
+  };
+}
+function defaultWorkKits() {
+  const products = catalogItems();
+  const definitions = [
     {
       id: "template-socket",
-      name: "Prise encastrée",
-      template: true,
-      lines: [
-        material("Prise de courant à choisir"),
-        material("Boîte d’encastrement à choisir"),
-        labor("Pose et raccordement d’une prise", 0.5),
-      ],
+      name: "Prise Dooxie et boîte EUROHM",
+      refs: ["600335", "52061"],
+      hours: 0.5,
+      labor: "Pose et raccordement d’une prise",
     },
     {
       id: "template-light",
-      name: "Point lumineux",
-      template: true,
-      lines: [
-        material("Dispositif DCL à choisir"),
-        material("Boîte de connexion à choisir"),
-        labor("Pose et raccordement d’un point lumineux", 0.5),
-      ],
+      name: "Point de centre DCL CAPRI",
+      refs: ["CAP715859"],
+      hours: 0.5,
+      labor: "Pose et raccordement d’un point lumineux",
     },
     {
       id: "template-panel",
-      name: "Remplacement de tableau",
-      template: true,
-      lines: [
-        material("Coffret électrique à choisir"),
-        material("Interrupteur différentiel à choisir"),
-        material("Disjoncteurs à choisir"),
-        labor("Remplacement du tableau et essais", 4),
-      ],
+      name: "Tableau Drivia et protections Legrand",
+      refs: ["401211", "411611", "406783"],
+      hours: 4,
+      labor: "Pose du tableau et essais",
     },
   ];
+  return definitions.flatMap((definition) => {
+    const materials = definition.refs.map((ref) =>
+      products.find((p) => p.ref === ref && p.kind === "material"),
+    );
+    if (materials.some((product) => !product)) return [];
+    return [
+      {
+        id: definition.id,
+        name: definition.name,
+        template: true,
+        lines: [
+          ...materials.map((product) => kitMaterial(product)),
+          {
+            kind: "labor",
+            label: definition.labor,
+            qty: definition.hours,
+            unit: "h",
+            cost: 0,
+            markup: 0,
+            price: company().rate,
+            vat: company().vat,
+          },
+        ],
+      },
+    ];
+  });
 }
 function ownWorkKits() {
-  return (db.workKits || []).filter((k) => k.companyId === db.active);
+  return (db.workKits || []).filter((kit) => kit.companyId === db.active);
 }
 function openKits() {
+  beginKitSession();
   modal(
-    `<h2>Kits de travaux</h2><p class="muted">Modèles de départ à adapter : références, quantités et temps de pose. Ces modèles ne constituent pas une étude de l’installation.</p><div class="actions"><button id="newWorkKit">+ Mon kit</button><button class="secondary" onclick="closeModal()">Fermer</button></div><div id="workKitList"></div>`,
+    `<h2>Mes kits de matériel</h2><div class="actions"><button id="newWorkKit">+ Créer avec le catalogue</button><button class="secondary" onclick="closeModal()">Fermer</button></div><div id="workKitList"></div>`,
   );
   const kits = [...ownWorkKits(), ...defaultWorkKits()];
   $("workKitList").innerHTML = kits
-    .map(
-      (k, i) =>
-        `<article class="line"><strong>${esc(k.name)}</strong><p class="muted">${k.lines.length} lignes · ${k.template ? "Modèle à configurer" : "Kit de votre entreprise"}</p><button class="secondary" data-kit="${i}">Configurer / ajouter</button></article>`,
-    )
+    .map((kit, index) => {
+      const material = kit.lines.find((line) => line.kind === "material");
+      return `<article class="kit-preview">${material ? equipmentPhoto(material) : ""}<div><h3>${esc(kit.name)}</h3>
+      <p class="muted">${
+        kit.lines
+          .filter((line) => line.kind === "material")
+          .map((line) => esc(line.ref || line.label))
+          .join(" · ") || "Main-d’œuvre"
+      }</p>
+      ${kit.template ? '<p class="muted">Exemple à adapter au chantier</p>' : ""}<button class="secondary" data-kit="${index}">Voir le contenu / ajouter</button></div></article>`;
+    })
     .join("");
-  document
-    .querySelectorAll("[data-kit]")
-    .forEach(
-      (b) =>
-        (b.onclick = () =>
-          editWorkKit(structuredClone(kits[Number(b.dataset.kit)]))),
-    );
-  $("newWorkKit").onclick = () => editWorkKit({ name: "Mon kit", lines: [] });
+  wireEquipmentPhotos($("dialog"));
+  document.querySelectorAll("[data-kit]").forEach((button) => {
+    button.onclick = () =>
+      editWorkKit(structuredClone(kits[Number(button.dataset.kit)]));
+  });
+  $("newWorkKit").onclick = () => editWorkKit({ name: "", lines: [] });
 }
-function editWorkKit(kit) {
+function editWorkKit(
+  kit,
+  context = { count: 1, room: draft.activeRoom || "" },
+) {
+  beginKitSession();
   if ($("dialog").open) closeModal();
-  modal(`<h2>Configurer le kit</h2><form id="kitForm">${field("kitName", "Nom du kit", kit.name, "text", 'required maxlength="120"')}
-    <p class="notice">Choisissez les références adaptées et vérifiez les prix HT. Les durées proposées sont des estimations modifiables.</p>
-    <div id="kitRows">${kit.lines
-      .map(
-        (
-          l,
-          i,
-        ) => `<fieldset class="kit-row"><legend>${i + 1}. ${l.kind === "material" ? "Matériel" : "Main-d’œuvre / forfait"}</legend>
-      <label>Désignation<input data-kit-field="label" data-row="${i}" value="${esc(l.label)}" required maxlength="500"></label>
-      ${l.ref ? `<p class="muted">Réf. ${esc(l.ref)} · Prix relevé : ${esc(l.checked || "non daté")}</p>` : ""}
-      <div class="grid"><label>Quantité<input type="number" data-kit-field="qty" data-row="${i}" value="${l.qty}" min="0.001" max="1000000" step="0.001" required></label>
-      <label>Unité<select data-kit-field="unit" data-row="${i}">${["u", "m", "h", "forfait", "lot"].map((u) => `<option ${u === l.unit ? "selected" : ""}>${u}</option>`).join("")}</select></label>
-      <label>Prix de vente HT / unité<input type="number" data-kit-field="price" data-row="${i}" value="${l.price ?? ""}" min="0" max="10000000" step="0.01" required></label>
-      <label>TVA (%)<select data-kit-field="vat" data-row="${i}">${[20, 10, 5.5, 0].map((v) => `<option value="${v}" ${Number(l.vat) === v ? "selected" : ""}>${v}</option>`).join("")}</select></label></div>
-      <div class="actions">${l.kind === "material" ? `<button type="button" class="secondary" data-kit-product="${i}">Choisir une référence</button>` : ""}<button type="button" class="danger" data-kit-remove="${i}">Retirer</button></div></fieldset>`,
-      )
-      .join("")}</div>
-    <div class="actions"><button type="button" id="kitAddMaterial" class="secondary">+ Matériel</button><button type="button" id="kitAddLabor" class="secondary">+ Main-d’œuvre</button><button type="button" id="kitAddService" class="secondary">+ Forfait</button></div>
-    <hr><div class="grid">${field("kitCount", "Nombre de kits à ajouter", 1, "number", 'min="0.001" max="1000000" step="0.001" required')}${select("kitRoom", "Pièce du chantier", roomOptions(), draft.activeRoom || "")}</div>
+  modal(`<h2>Composer mon kit</h2><form id="kitForm">${field("kitName", "Nom du kit", kit.name, "text", 'required maxlength="120" placeholder="Ex. Prise du salon"')}
+    <div class="actions"><button type="button" id="kitAddMaterial">+ Piocher dans le catalogue</button><button type="button" id="kitAddLabor" class="secondary">+ Temps de pose</button></div>
+    <div id="kitRows">${
+      kit.lines
+        .map(
+          (line, index) => `<article class="kit-item">
+      <div class="kit-item-product">${line.kind === "material" ? equipmentPhoto(line) : '<span class="labor-symbol" aria-hidden="true">h</span>'}<div><strong>${esc(line.label)}</strong>
+        <p class="muted">${line.kind === "material" ? `Réf. ${esc(line.ref || line.sku || "à choisir dans le catalogue")}` : "Main-d’œuvre"}</p>
+        <span>${line.needsPrice || line.price === "" || line.price == null ? "Prix à compléter dans Conditions et PDF" : money(line.price) + " HT / " + esc(line.unit)}</span></div></div>
+      <div class="kit-item-controls"><label>${line.kind === "labor" ? "Temps de pose (heures)" : "Quantité (" + esc(line.unit || "u") + ")"}<input type="number" data-kit-field="qty" data-row="${index}" value="${line.qty}" min="0.001" max="1000000" step="0.001" required></label>
+      <div class="actions">${line.kind === "material" ? `<button type="button" class="secondary" data-kit-product="${index}">Remplacer</button>` : ""}<button type="button" class="danger" data-kit-remove="${index}">Retirer</button></div></div></article>`,
+        )
+        .join("") ||
+      '<p class="empty">Ajoutez vos premiers produits depuis le catalogue.</p>'
+    }</div>
+    <div class="grid">${field("kitCount", "Nombre de kits", context.count, "number", 'min="0.001" max="1000000" step="0.001" required')}${select("kitRoom", "Pièce", roomOptions(), context.room)}</div>
     <div class="actions"><button type="submit">Ajouter au devis</button><button type="button" id="saveWorkKit" class="secondary">Enregistrer ce kit</button><button type="button" class="secondary" id="backKits">Retour</button>${kit.companyId ? '<button type="button" id="deleteWorkKit" class="danger">Supprimer le kit</button>' : ""}</div></form>`);
+  wireEquipmentPhotos($("dialog"));
   const captureKit = () => {
     kit.name = $("f-kitName").value.trim();
-    document.querySelectorAll("[data-kit-field]").forEach((input) => {
-      const key = input.dataset.kitField;
-      kit.lines[Number(input.dataset.row)][key] =
-        ["qty", "vat"].includes(key) || (key === "price" && input.value !== "")
-          ? Number(input.value)
-          : input.value;
+    document.querySelectorAll("[data-kit-field='qty']").forEach((input) => {
+      kit.lines[Number(input.dataset.row)].qty = Number(input.value);
     });
+    context.count = Number($("f-kitCount").value);
+    context.room = $("f-kitRoom").value;
   };
   const validKit = () => {
     if (!$("kitForm").reportValidity()) return false;
     captureKit();
-    if (
-      !kit.name ||
-      !kit.lines.length ||
-      kit.lines.some((l) => !l.label.trim())
-    ) {
-      toast("Ajoutez au moins une ligne avec une désignation");
+    if (!kit.name || !kit.lines.length) {
+      toast("Nommez le kit et ajoutez au moins un élément");
+      return false;
+    }
+    if (kit.lines.some((line) => line.kind === "material" && !line.catalogId)) {
+      toast(
+        "Remplacez les éléments sans référence par un produit du catalogue",
+      );
       return false;
     }
     return true;
   };
-  document.querySelectorAll("[data-kit-product]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        captureKit();
-        pickKitProduct(kit, Number(b.dataset.kitProduct));
-      }),
-  );
-  document.querySelectorAll("[data-kit-remove]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        captureKit();
-        kit.lines.splice(Number(b.dataset.kitRemove), 1);
-        editWorkKit(kit);
-      }),
-  );
-  ["Material", "Labor", "Service"].forEach(
-    (type, i) =>
-      ($("kitAdd" + type).onclick = () => {
-        captureKit();
-        kit.lines.push({
-          kind: ["material", "labor", "service"][i],
-          label: "",
-          qty: 1,
-          unit: ["u", "h", "forfait"][i],
-          cost: i ? 0 : null,
-          markup: i ? 0 : company().markup,
-          price: i === 1 ? company().rate : "",
-          vat: company().vat,
-        });
-        editWorkKit(kit);
-      }),
-  );
+  $("kitAddMaterial").onclick = () => {
+    captureKit();
+    pickKitProduct(kit, undefined, context);
+  };
+  $("kitAddLabor").onclick = () => {
+    captureKit();
+    kit.lines.push({
+      kind: "labor",
+      label: "Pose et raccordement",
+      qty: 0.5,
+      unit: "h",
+      cost: 0,
+      markup: 0,
+      price: company().rate,
+      vat: company().vat,
+    });
+    editWorkKit(kit, context);
+  };
+  document.querySelectorAll("[data-kit-product]").forEach((button) => {
+    button.onclick = () => {
+      captureKit();
+      pickKitProduct(kit, Number(button.dataset.kitProduct), context);
+    };
+  });
+  document.querySelectorAll("[data-kit-remove]").forEach((button) => {
+    button.onclick = () => {
+      captureKit();
+      kit.lines.splice(Number(button.dataset.kitRemove), 1);
+      editWorkKit(kit, context);
+    };
+  });
   $("backKits").onclick = () => {
     closeModal();
     openKits();
@@ -256,26 +358,28 @@ function editWorkKit(kit) {
       companyId: db.active,
       template: false,
     };
+    saved.lines.forEach((line) => {
+      if (line.price === "" || line.price == null) {
+        line.price = 0;
+        line.needsPrice = true;
+      }
+    });
     db.workKits = [
-      ...(db.workKits || []).filter((k) => k.id !== saved.id),
+      ...(previous || []).filter((item) => item.id !== saved.id),
       saved,
     ];
     if (!save()) {
       db.workKits = previous;
       return;
     }
-    kit = saved;
-    toast("Kit enregistré pour cette entreprise");
-    editWorkKit(kit);
+    toast("Kit enregistré");
+    editWorkKit(saved, context);
   };
   if ($("deleteWorkKit"))
     $("deleteWorkKit").onclick = () => {
-      if (
-        !confirm("Supprimer ce kit enregistré ? Les devis restent inchangés.")
-      )
-        return;
+      if (!confirm("Supprimer ce kit enregistré ?")) return;
       const previous = db.workKits;
-      db.workKits = db.workKits.filter((k) => k.id !== kit.id);
+      db.workKits = db.workKits.filter((item) => item.id !== kit.id);
       if (!save()) {
         db.workKits = previous;
         return;
@@ -283,85 +387,73 @@ function editWorkKit(kit) {
       closeModal();
       openKits();
     };
-  $("kitForm").onsubmit = (e) => {
-    e.preventDefault();
+  $("kitForm").onsubmit = (event) => {
+    event.preventDefault();
     if (!validKit()) return;
-    const count = Number($("f-kitCount").value),
-      room = $("f-kitRoom").value;
-    const lines = structuredClone(kit.lines).map((l) => ({
-      ...l,
-      qty: Math.round(l.qty * count * 1000) / 1000,
-      price: Number(l.price),
-      room,
+    const lines = structuredClone(kit.lines).map((line) => ({
+      ...line,
+      qty: Math.round(line.qty * context.count * 1000) / 1000,
+      price: Number(line.price) || 0,
+      needsPrice: Boolean(
+        line.needsPrice || line.price === "" || line.price == null,
+      ),
+      vat: draft.defaultVat ?? company().vat,
+      room: context.room,
       kitName: kit.name,
     }));
-    if (lines.some((l) => l.qty < 0.001 || l.qty > 1000000))
-      return toast(
-        "La quantité finale doit être comprise entre 0,001 et 1 000 000",
-      );
+    if (lines.some((line) => line.qty < 0.001 || line.qty > 1000000))
+      return toast("Vérifiez les quantités finales du kit");
     const previous = draft.lines;
-    draft.lines = [...draft.lines, ...lines];
+    draft.lines = [...previous, ...lines];
     if (!storeQuote(true)) {
       draft.lines = previous;
       return;
     }
     closeModal();
     renderEditor();
-    toast("Kit ajouté : vérifiez la sélection avant de finaliser");
+    toast("Kit ajouté au devis");
   };
 }
-function pickKitProduct(kit, index) {
+function pickKitProduct(kit, index, context) {
   closeModal();
   modal(
-    `<h2>Choisir une référence</h2><p>${esc(kit.lines[index].label)}</p><label>Nom, référence ou marque<input id="kitProductSearch" type="search" autofocus></label><div id="kitProductResults"></div><button id="backKitEditor" class="secondary">Retour au kit</button>`,
+    `<div class="row wrap"><h2>Catalogue du kit</h2><button id="backKitEditor" class="secondary">Terminer la sélection</button></div><p id="kitPickCount" class="muted"></p><section id="kitCatalogue"></section>`,
   );
-  const products = catalogItems().filter((p) => p.kind === "material");
-  const results = () => {
-    const tokens = normalizeSearch($("kitProductSearch").value)
-      .split(" ")
-      .filter(Boolean);
-    if (!tokens.length) {
-      $("kitProductResults").innerHTML =
-        '<p class="muted">Recherchez le matériel à utiliser dans ce kit.</p>';
-      return;
-    }
-    const found = products.filter((p) =>
-      tokens.every((t) =>
-        normalizeSearch([p.label, p.ref, p.brand].join(" ")).includes(t),
-      ),
-    );
-    $("kitProductResults").innerHTML =
-      `<p class="muted">${found.length} résultats · 20 premiers affichés, précisez la recherche si nécessaire.</p>` +
-      found
-        .slice(0, 20)
-        .map(
-          (p, i) =>
-            `<button class="client-choice" data-kit-pick="${i}"><strong>${esc(p.label)}</strong><small>${esc(p.ref)} · ${p.cost == null ? "Prix à saisir" : money(round(p.cost * (1 + company().markup / 100))) + " HT"}</small></button>`,
-        )
-        .join("");
-    document.querySelectorAll("[data-kit-pick]").forEach(
-      (b) =>
-        (b.onclick = () => {
-          const p = found[Number(b.dataset.kitPick)],
-            qty = kit.lines[index].qty;
-          kit.lines[index] = {
-            ...p,
-            catalogId: productKey(p),
-            qty,
-            markup: company().markup,
-            vat: company().vat,
-            price:
-              p.cost == null
-                ? ""
-                : round(p.cost * (1 + company().markup / 100)),
-          };
-          editWorkKit(kit);
-        }),
-    );
+  const selection = (product) => {
+    if (index !== undefined) return null;
+    return kit.lines.find((line) => line.catalogId === productKey(product));
   };
-  $("kitProductSearch").oninput = results;
-  $("backKitEditor").onclick = () => editWorkKit(kit);
-  results();
+  const updateCount = () => {
+    $("kitPickCount").textContent =
+      `${kit.lines.filter((line) => line.kind === "material").length} référence(s) dans ce kit`;
+  };
+  mountCatalogBrowser($("kitCatalogue"), true, {
+    kitPicker: true,
+    selection,
+    priceFor: (product) =>
+      product.kind === "material"
+        ? product.cost == null
+          ? null
+          : round(product.cost * (1 + company().markup / 100))
+        : product.price,
+    addProduct: (product, delta) => {
+      if (product.kind !== "material")
+        return toast("Choisissez un matériel pour ce kit");
+      if (index !== undefined) {
+        kit.lines[index] = kitMaterial(product, kit.lines[index].qty);
+        queueMicrotask(() => editWorkKit(kit, context));
+        return;
+      }
+      const existing = selection(product);
+      if (existing) {
+        existing.qty = Math.round((existing.qty + delta) * 1000) / 1000;
+        if (existing.qty <= 0) kit.lines.splice(kit.lines.indexOf(existing), 1);
+      } else if (delta > 0) kit.lines.push(kitMaterial(product));
+      updateCount();
+    },
+  });
+  $("backKitEditor").onclick = () => editWorkKit(kit, context);
+  updateCount();
 }
 
 function laborPresets() {
@@ -629,7 +721,8 @@ function validateBackup(v) {
   )
     throw Error("Format incompatible");
   const ids = new Set();
-  const validId = id => typeof id === "string" && /^[a-zA-Z0-9_.:-]{1,150}$/.test(id);
+  const validId = (id) =>
+    typeof id === "string" && /^[a-zA-Z0-9_.:-]{1,150}$/.test(id);
   v.companies.forEach((c) => {
     if (
       !c ||

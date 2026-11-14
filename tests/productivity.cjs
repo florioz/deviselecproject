@@ -82,21 +82,49 @@ const assert = require("node:assert/strict");
     await page.waitForFunction(() => !catalogLoading);
     await page.locator("#newQuote").click();
     await page.locator("#addRoom").click();
-    await page.locator("#f-roomName").fill("Cuisine");
+    await page.locator("#roomNameChoice").selectOption("Cuisine");
     await page.locator("#roomForm button").first().click();
     await page.locator("#openKits").click();
-    await page.locator('[data-kit="0"]').click();
+    assert.ok(
+      await page
+        .locator(".kit-preview")
+        .first()
+        .textContent()
+        .then((text) => text.includes("600335")),
+    );
+    await page.locator("#newWorkKit").click();
     await page.locator('#kitForm button[type="submit"]').click();
     assert.equal(await page.evaluate(() => draft.lines.length), 0);
-    await page.locator('[data-kit-product="0"]').click();
-    await page.locator("#kitProductSearch").fill("600335");
-    await page.locator('[data-kit-pick="0"]').click();
-    await page.locator('[data-kit-product="1"]').click();
-    await page.locator("#kitProductSearch").fill("boite encastrement");
-    await page.locator('[data-kit-pick="0"]').click();
-    // An explicit user-entered price is allowed even if a supplier price is missing.
-    await page.locator('[data-kit-field="price"][data-row="1"]').fill("2.50");
     await page.locator("#f-kitName").fill("Prise cuisine complète");
+    assert.equal(await page.locator('[data-kit-field="vat"]').count(), 0);
+    await page.locator("#kitAddMaterial").click();
+    assert.ok((await page.locator(".equipment-tile").count()) > 0);
+    await page.locator("#catalogSearch").fill("600335");
+    await page
+      .locator(".catalog-product")
+      .filter({ hasText: "Réf. 600335" })
+      .locator("[data-pick]")
+      .click();
+    await page.locator("#catalogSearch").fill("52061");
+    await page
+      .locator(".catalog-product")
+      .filter({ hasText: "Réf. 52061" })
+      .locator("[data-pick]")
+      .click();
+    assert.equal(await page.evaluate(() => draft.lines.length), 0);
+    await page.locator("#backKitEditor").click();
+    await page.locator("#kitAddLabor").click();
+    assert.equal(await page.locator(".kit-item").count(), 3);
+    await page.locator("#f-kitCount").fill("2");
+    await page.locator('[data-kit-product="0"]').click();
+    assert.equal(await page.locator("#catalogSearch").count(), 1);
+    await page.locator("#catalogSearch").fill("600335");
+    await page
+      .locator(".catalog-product")
+      .filter({ hasText: "Réf. 600335" })
+      .locator("[data-pick]")
+      .click();
+    assert.equal(await page.locator("#f-kitCount").inputValue(), "2");
     await page.locator("#saveWorkKit").click();
     assert.equal(await page.evaluate(() => ownWorkKits().length), 1);
     await page.locator("#f-kitCount").fill("2");
@@ -111,6 +139,7 @@ const assert = require("node:assert/strict");
     const firstTotal = await page.evaluate(() => totals(draft).ht);
     await page.locator(".work-tools summary").click();
     await page.locator("#copyRoom").click();
+    await page.locator("#roomNameChoice").selectOption("__custom");
     await page.locator("#f-roomName").fill("Chambre");
     await page.locator("#roomForm button").first().click();
     assert.equal(
@@ -133,7 +162,7 @@ const assert = require("node:assert/strict");
     );
     await page.locator(".work-tools summary").click();
     await page.locator("#renameRoom").click();
-    await page.locator("#f-roomName").fill("Chambre 1");
+    await page.locator("#roomNameChoice").selectOption("Chambre 1");
     await page.locator("#roomForm button").first().click();
     assert.equal(
       await page.evaluate(() => draft.lines.some((l) => l.room === "Chambre")),
@@ -158,6 +187,7 @@ const assert = require("node:assert/strict");
     assert.equal(await page.evaluate(() => draft.lines.at(-1).price), 50);
     await page.locator("#selectionButton").click();
     await page.locator('[data-edit-line="0"]').click();
+    await page.locator("#lineRoomChoice").selectOption("__custom");
     await page.locator("#f-room").fill("Salon");
     await page.locator('#lineForm button[type="submit"]').click();
     assert.equal(
@@ -360,6 +390,79 @@ const assert = require("node:assert/strict");
       ),
       true,
     );
+    await page.locator("#backKits").click();
+    await page
+      .getByRole("button", { name: "Fermer", exact: true })
+      .last()
+      .click();
+    await page.waitForFunction(() => !kitSession);
+    for (const width of [320, 390, 600]) {
+      await page.setViewportSize({ width, height: 844 });
+      assert.equal(
+        await page.evaluate(() => {
+          const elements = [
+            ...document.querySelectorAll("nav button,.quote-steps button"),
+          ];
+          return (
+            document.documentElement.scrollWidth <= innerWidth &&
+            elements.every(
+              (element) =>
+                element.scrollWidth <= element.clientWidth &&
+                element.getBoundingClientRect().width >= 90,
+            )
+          );
+        }),
+        true,
+      );
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator("#selectionButton").click();
+    await page.locator('[data-edit-line="0"]').click();
+    assert.equal(await page.locator("#f-vat").isVisible(), false);
+    assert.equal(await page.locator("#f-room").isVisible(), false);
+    assert.equal(
+      await page.locator("#lineRoomChoice").evaluate((el) => el.tagName),
+      "SELECT",
+    );
+    await page.getByRole("button", { name: "Annuler", exact: true }).click();
+    // A supplier reference without a price can enter a kit and gets completed at the final stage.
+    const unknown = await page.evaluate(() =>
+      catalogItems().find(
+        (p) => p.kind === "material" && p.cost == null && p.ref,
+      ),
+    );
+    assert.ok(unknown);
+    await page.locator("#openKits").click();
+    await page.locator("#newWorkKit").click();
+    await page.locator("#f-kitName").fill("Matériel sans prix");
+    await page.locator("#kitAddMaterial").click();
+    await page.locator("#catalogSearch").fill(unknown.ref);
+    await page.locator(`[data-pick="${unknown.id}"]`).click();
+    await page.locator("#backKitEditor").click();
+    assert.equal(await page.locator('[data-kit-field="vat"]').count(), 0);
+    await page.locator('#kitForm button[type="submit"]').click();
+    assert.equal(
+      await page.evaluate(() => draft.lines.at(-1).needsPrice),
+      true,
+    );
+    await page.evaluate(() => changeQuoteStage(2));
+    assert.equal(await page.locator("#quotePricing").getAttribute("open"), "");
+    await page.locator("[data-review-price]").last().fill("12.50");
+    await page.locator("#f-quoteVat").selectOption("10");
+    await page.locator("#applyQuoteVat").click();
+    assert.equal(
+      await page.evaluate(() => draft.lines.every((line) => line.vat === 10)),
+      true,
+    );
+    assert.equal(
+      await page.evaluate(() => draft.lines.at(-1).needsPrice),
+      false,
+    );
+    assert.equal(await page.evaluate(() => draft.lines.at(-1).price), 12.5);
+    await page.screenshot({
+      path: "tmp/productivity-pricing-mobile.png",
+      fullPage: true,
+    });
     assert.deepEqual(errors, []);
     console.log(
       "PASS: configured kits, room duplication/rename/line moves, labor presets, status/date filters, preserved and current-price copies, company isolation, backup export/file restore/cancel/invalid/storage rollback, PDF room grouping.",

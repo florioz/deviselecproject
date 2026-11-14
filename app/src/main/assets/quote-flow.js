@@ -15,6 +15,9 @@ function renderEditor() {
               )
               .join("")}
         </div><div id="quoteStage"></div>`;
+  document
+    .querySelector('[aria-current="step"]')
+    ?.scrollIntoView({ block: "nearest", inline: "center" });
   $("back").onclick = () => {
     capture();
     storeQuote(true);
@@ -94,6 +97,11 @@ function refreshSelectionSummary() {
     draft.lines.length === 0;
   $("selectionButton").textContent = `Ma sélection (${draft.lines.length})`;
   $("selectionTotal").textContent = money(totals(draft).ttc);
+  $("selectionTotal").previousElementSibling.textContent = draft.lines.some(
+    (line) => line.needsPrice,
+  )
+    ? "TTC provisoire · prix manquant"
+    : "Total TTC";
 }
 
 function quoteProductLine(product) {
@@ -127,7 +135,7 @@ function quickAddProduct(product, delta = 1) {
         qty: 1,
         price: 0,
         markup: company().markup,
-        vat: company().vat,
+        vat: draft.defaultVat ?? company().vat,
         room: draft.activeRoom || "",
       });
       return;
@@ -138,7 +146,7 @@ function quickAddProduct(product, delta = 1) {
       qty: 1,
       price: quoteProductPrice(product),
       markup: company().markup,
-      vat: company().vat,
+      vat: draft.defaultVat ?? company().vat,
       room: draft.activeRoom || "",
     });
   }
@@ -152,8 +160,8 @@ function showQuoteSelection() {
     draft.lines
       .map(
         (line, index) =>
-          `<article class="selected-line"><p class="muted">${esc(line.room || "Ensemble du chantier")}</p><div>${equipmentPhoto(line)}<strong>${esc(line.label)}</strong></div>
-            <div class="row"><span>${money(line.price)} HT / ${esc(line.unit)}</span>
+          `<article class="selected-line"><p class="muted">${esc(line.room || "Ensemble du chantier")}</p><div class="selected-product">${equipmentPhoto(line)}<strong>${esc(line.label)}</strong></div>
+            <div class="row"><span>${line.needsPrice ? "Prix à compléter dans Conditions et PDF" : money(line.price) + " HT / " + esc(line.unit)}</span>
                 <div class="inline-quantity"><button class="secondary" data-line-delta="-1" data-index="${index}" aria-label="Diminuer ${esc(line.label)}">−</button>
                     <strong>${line.qty}</strong><button class="secondary" data-line-delta="1" data-index="${index}" aria-label="Augmenter ${esc(line.label)}">+</button></div></div>
             <button class="text-button" data-edit-line="${index}">Détails / prix / supprimer</button></article>`,
@@ -213,6 +221,21 @@ function renderClientStage() {
         <label class="check-label"><input id="sameClientAddress" type="checkbox" ${sameAddress ? "checked" : ""}> Chantier à l’adresse du client</label>
         <div id="siteField" ${sameAddress ? "hidden" : ""}>${area("site", "Adresse du chantier", draft.site || draft.clientAddress)}</div>
         <div class="actions"><button type="button" id="previousStage" class="secondary">← Matériel</button><button type="submit">Conditions et PDF →</button></div></form>`;
+  addClosedChoices(
+    $("f-title"),
+    [
+      "Travaux électriques",
+      "Rénovation électrique",
+      "Installation électrique neuve",
+      "Mise en sécurité électrique",
+      "Remplacement de tableau électrique",
+      "Ajout de prises et interrupteurs",
+      "Installation d’éclairage",
+      "Dépannage électrique",
+    ],
+    "quoteSubjectChoice",
+    "Objet personnalisé…",
+  );
   const summary = () => {
     $("quoteClientSummary").innerHTML = draft.client
       ? `<strong>${esc(draft.client)}</strong><p>${esc(draft.clientAddress).replace(/\n/g, "<br>")}</p><span class="muted">${esc(draft.email)}</span>`
@@ -291,6 +314,7 @@ function renderQuoteReview() {
     capture();
     openLabor();
   };
+  mountQuotePricing();
   addDurationChoices();
   addPaymentChoices();
   function summary() {
@@ -315,6 +339,11 @@ function renderQuoteReview() {
     storeQuote();
   };
   $("pdf").onclick = () => {
+    if (draft.lines.some((line) => line.needsPrice)) {
+      $("quotePricing").open = true;
+      toast("Complétez les prix manquants avant de générer le PDF");
+      return;
+    }
     if (!$("quoteForm").reportValidity()) return;
     capture();
     if (!draft.lines.length || !draft.client || !draft.clientAddress) {

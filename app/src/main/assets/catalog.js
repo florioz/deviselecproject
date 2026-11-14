@@ -232,7 +232,7 @@ function filterOptions(values, label) {
   );
 }
 
-function mountCatalogBrowser(container, picker) {
+function mountCatalogBrowser(container, picker, selectionOptions = {}) {
   if (catalogError) {
     container.innerHTML =
       '<p class="notice">Le catalogue embarqué n’a pas pu être chargé.</p><button id="retryCatalog">Réessayer</button><div id="catalogFilters"></div>';
@@ -297,6 +297,7 @@ function mountCatalogBrowser(container, picker) {
         <div id="catalogResults"></div><div id="catalogMore" class="actions"></div></div>`;
 
   const browser = {
+    ...selectionOptions,
     picker,
     limit: 30,
     treeFamily: "",
@@ -321,7 +322,7 @@ function mountCatalogBrowser(container, picker) {
           : product.price,
     })),
   };
-  if (picker && quoteCatalogState) {
+  if (picker && !browser.kitPicker && quoteCatalogState) {
     Object.assign(browser, {
       treeFamily: quoteCatalogState.treeFamily,
       treeLeaf: quoteCatalogState.treeLeaf,
@@ -343,6 +344,8 @@ function mountCatalogBrowser(container, picker) {
   $("catalogSearch").oninput = () => {
     clearTimeout(debounce);
     debounce = setTimeout(() => {
+      if (!container.isConnected || !container.contains($("catalogSearch")))
+        return;
       browser.limit = 30;
       updateCatalogResults(browser);
     }, 100);
@@ -430,11 +433,13 @@ function renderCatalogBrowser(picker) {
 
 function updateCatalogResults(browser) {
   browser.items.forEach((item) => {
-    item.price = browser.picker
-      ? quoteProductPrice(item.product)
-      : item.product.kind === "material"
-        ? item.product.cost
-        : item.product.price;
+    item.price = browser.priceFor
+      ? browser.priceFor(item.product)
+      : browser.picker
+        ? quoteProductPrice(item.product)
+        : item.product.kind === "material"
+          ? item.product.cost
+          : item.product.price;
   });
   renderEquipmentExplorer(browser);
   renderComparisonPanel(browser);
@@ -531,7 +536,11 @@ function updateCatalogResults(browser) {
         const known = price != null && Number.isFinite(Number(price));
         const id = esc(product.id);
         const isFavorite = favorites.has(productKey(product));
-        const selected = browser.picker ? quoteProductLine(product) : null;
+        const selected = browser.selection
+          ? browser.selection(product)
+          : browser.picker
+            ? quoteProductLine(product)
+            : null;
         return `<article class="catalog-product ${selected ? "is-selected" : ""}">
             ${equipmentPhoto(product)}
             <div class="row"><span class="muted">${esc(product.brand || "Mon entreprise")}${browser.picker ? "" : " · " + esc(product.category || "Mes prestations")}</span>
@@ -578,7 +587,8 @@ function updateCatalogResults(browser) {
           toast("Créez votre entreprise pour préparer un devis");
           return;
         }
-        quickAddProduct(product);
+        if (browser.addProduct) browser.addProduct(product, 1);
+        else quickAddProduct(product);
         updateCatalogResults(browser);
       };
     });
@@ -586,7 +596,9 @@ function updateCatalogResults(browser) {
     .querySelectorAll("[data-product-minus]")
     .forEach((button) => {
       button.onclick = () => {
-        quickAddProduct(find(button.dataset.productMinus), -1);
+        if (browser.addProduct)
+          browser.addProduct(find(button.dataset.productMinus), -1);
+        else quickAddProduct(find(button.dataset.productMinus), -1);
         updateCatalogResults(browser);
       };
     });

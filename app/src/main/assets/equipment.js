@@ -181,7 +181,7 @@ function equipmentMatches(product, browser) {
 }
 
 function rememberEquipmentState(browser) {
-  if (!browser.picker || !draft) return;
+  if (!browser.picker || !draft || browser.kitPicker) return;
   quoteCatalogState = {
     treeFamily: browser.treeFamily,
     treeLeaf: browser.treeLeaf,
@@ -352,7 +352,8 @@ function renderEquipmentExplorer(browser) {
           (item) => item.product.id === button.dataset.recommend,
         ).product;
         if (browser.picker) {
-          quickAddProduct(product);
+          if (browser.addProduct) browser.addProduct(product, 1);
+          else quickAddProduct(product);
           updateCatalogResults(browser);
         } else catalogModal(product);
       };
