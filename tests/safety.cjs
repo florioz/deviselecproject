@@ -327,6 +327,25 @@ const assert = require("node:assert/strict");
     );
     // Recovery is persistent, bounded, and also records a state before restoration.
     await page.locator("#back").click();
+    const cards = page.locator(".quote-card");
+    assert.equal(await cards.count(), 3);
+    const backgrounds = await cards.evaluateAll((elements) =>
+      elements.map((element) => getComputedStyle(element).backgroundColor),
+    );
+    assert.notEqual(backgrounds[0], backgrounds[1]);
+    const first = await cards.nth(0).boundingBox(),
+      second = await cards.nth(1).boundingBox();
+    assert.ok(second.y - first.y - first.height >= 12);
+    await page.screenshot({
+      path: "tmp/quote-cards-mobile.png",
+      fullPage: true,
+    });
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.screenshot({
+      path: "tmp/quote-cards-desktop.png",
+      fullPage: true,
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.evaluate(async () => {
       await checkpointQueue;
       for (let i = 0; i < 7; i++) {

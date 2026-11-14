@@ -15,8 +15,15 @@ function wireProfile(product) {
   else if (/\bfr[ -]?n1x6g3\b/.test(text)) facts.type = "N1X6G3";
   else if (/\bh07rn[ -]?f\b/.test(text)) facts.type = "H07RN-F";
   else if (/\bh05vv[ -]?f\b/.test(text)) facts.type = "H05VV-F";
+  else if (/\bliycy\b/.test(text)) facts.type = "LiYCY";
+  else if (/\bicta\b/.test(text)) facts.type = "ICTA";
+  else if (/\birl\b/.test(text)) facts.type = "IRL";
+  else if (/\b(?:cable|cordon)\b.*\b(?:rj45|cat[ .-]?[5678])/.test(text))
+    facts.type = "RJ45";
   const constructions = [
-    ...text.matchAll(/\b([1-9]\d?)\s*([gx])\s*(\d+(?:\.\d+)?)(?![\d.])/g),
+    ...text.matchAll(
+      /\b([1-9]\d?)\s*([gx])\s*(\d+(?:\.\d+)?)(?![\d.])(?=mm[²2]|\b)/g,
+    ),
   ].map((match) => ({
     conductors: String(Number(match[1])),
     earth: match[2].toUpperCase(),
@@ -48,6 +55,12 @@ function wireProfile(product) {
     facts.conductors = "1";
     delete facts.earth;
   }
+  if (facts.type === "RJ45") {
+    const pairs = [...text.matchAll(/\b(?:(\d+)\s*x\s*)?(\d+)\s*p\b/g)].map(
+      (match) => Number(match[1] || 1) * Number(match[2]) * 2,
+    );
+    if (new Set(pairs).size === 1) facts.conductors = String(pairs[0]);
+  }
   const colors = [];
   let colorText = text;
   if (/vert\s*(?:\/|-|et)?\s*jaune/.test(colorText)) {
@@ -69,12 +82,32 @@ function wireProfile(product) {
     if (new RegExp("\\b" + color + "\\b").test(colorText)) colors.push(color);
   }
   if (colors.length) facts.color = colors.sort().join(" / ");
+  const lengths = [
+    ...text.matchAll(/\b(?:l\s*)?(\d+(?:\.\d+)?)\s*m\b(?![²2])/g),
+  ].map((match) => String(Number(match[1])));
+  if (new Set(lengths).size === 1) facts.length = lengths[0];
   if (/prix au metre|vendu au metre/.test(text)) facts.pack = "cut";
   else {
-    const length = text.match(
-      /(?:couronne|touret|bobine)\s*(?:de\s*)?(\d+(?:\.\d+)?)\s*m\b/,
-    );
-    if (length) facts.pack = String(Number(length[1]));
+    const packaging = text.match(/\b(couronne|touret|bobine|box|boite)\b/);
+    if (packaging) facts.pack = packaging[1];
+  }
+  const shields = [...text.matchAll(/\b(sf|s|f|u)\s*\/\s*(ftp|utp)\b/g)].map(
+    (match) => (match[1] + "/" + match[2]).toUpperCase(),
+  );
+  if (new Set(shields).size === 1) facts.shield = shields[0];
+  else if (!shields.length) {
+    if (/non[ -]blind|sans blindage/.test(text)) facts.shield = "none";
+    else if (/\bftp\s+pimf\b/.test(text)) facts.shield = "U/FTP";
+    else if (/\bsftp\b/.test(text)) facts.shield = "S/FTP";
+    else if (/\bftp\b/.test(text)) facts.shield = "F/UTP";
+    else if (/\butp\b/.test(text)) facts.shield = "U/UTP";
+    else if (/\bblinde/.test(text)) facts.shield = "shielded";
+  }
+  if (/\b(?:gaine|icta|irl|tube)\b/.test(text)) {
+    const diameters = [
+      ...text.matchAll(/\b(?:d|diametre|ø)\s*(\d+(?:\.\d+)?)/g),
+    ].map((match) => String(Number(match[1])));
+    if (new Set(diameters).size === 1) facts.diameter = diameters[0];
   }
   wireProfileCache.set(product, facts);
   return facts;
@@ -86,19 +119,7 @@ function matchesWireFilters(product, browser, excluded = "") {
   );
   if (!active.length) return true;
   const profile = wireProfile(product);
-  return (
-    profile.isConductor &&
-    active.every(([key, value]) => profile[key] === value)
+  return active.every(([key, value]) =>
+    value === "unknown" ? profile[key] === undefined : profile[key] === value,
   );
-}
-function wireRelevance(product) {
-  const facts = wireProfile(product);
-  if (!facts.isConductor) return 0;
-  if (
-    ["R2V", "N1X6G3"].includes(facts.type) &&
-    ["1.5", "2.5"].includes(facts.section) &&
-    ["3", "5"].includes(facts.conductors)
-  )
-    return 6;
-  return facts.type?.startsWith("H07V-") ? 4 : 0;
 }

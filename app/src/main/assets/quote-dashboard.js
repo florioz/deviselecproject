@@ -130,7 +130,7 @@ function renderQuotes() {
       found
         .map(
           (q) =>
-            `<article class="line"><div class="row wrap"><div><strong>${esc(q.client || "Brouillon sans client")}</strong><p class="muted">${esc(q.number)}${q.revision ? " · Version " + q.revision : ""} · ${esc(q.date)}<br>${esc(q.title)}</p></div><strong>${money(totals(q).ttc)}</strong></div><span class="pill quote-status">${esc(q.status || "Brouillon")}${q.locked ? " · Verrouillé" : ""}</span><div class="actions"><button class="secondary" data-open="${esc(q.id)}">Ouvrir</button><button class="secondary" data-copy="${esc(q.id)}">Dupliquer</button></div></article>`,
+            `<article class="quote-card"><div class="row wrap"><div><strong>${esc(q.client || "Brouillon sans client")}</strong><p class="muted">${esc(q.number)}${q.revision ? " · Version " + q.revision : ""} · ${esc(q.date)}<br>${esc(q.title)}</p></div><strong>${money(totals(q).ttc)}</strong></div><span class="pill quote-status">${esc(q.status || "Brouillon")}${q.locked ? " · Verrouillé" : ""}</span><div class="actions"><button class="secondary" data-open="${esc(q.id)}">Ouvrir</button><button class="secondary" data-copy="${esc(q.id)}">Dupliquer</button></div></article>`,
         )
         .join("") ||
       '<p class="empty">Aucun devis ne correspond à ces critères.</p>';

@@ -60,10 +60,39 @@ const assert = require("node:assert/strict");
       ["1.5", "15", "X", "bleu", false, null, null],
     );
     await page.locator('[data-tree-tile="cables"]').click();
-    await page.locator('[data-tree-tile="3g25"]').click();
+    assert.deepEqual(
+      await page
+        .locator(".equipment-tile")
+        .evaluateAll((nodes) => nodes.map((node) => node.dataset.treeTile)),
+      ["cables", "gaines", "tubes", "goulottes"],
+    );
+    await page.locator('[data-tree-tile="cables"]').click();
+    const expected = await page.evaluate(
+      () =>
+        catalogItems().filter(
+          (product) =>
+            product.category === "Câbles et conduits" &&
+            /cable|\bfil\b/.test(normalizeSearch(product.label)),
+        ).length,
+    );
+    assert.ok(expected > 100);
+    assert.equal(
+      await page.locator("#catalogCount").textContent(),
+      expected.toLocaleString("fr-FR") + " résultat(s)",
+    );
+    assert.equal(
+      await page
+        .locator("[data-wire-filter]")
+        .evaluateAll((inputs) => inputs.every((input) => input.value === "")),
+      true,
+    );
+
     assert.ok((await page.locator(".catalog-product").count()) > 0);
     await page.locator("#wire-type").selectOption("R2V");
+    await page.locator("#wire-section").selectOption("2.5");
     await page.locator("#wireMoreFilters>summary").click();
+    await page.locator("#wire-conductors").selectOption("3");
+    await page.locator("#wire-earth").selectOption("G");
     await page.locator("#wire-pack").selectOption("cut");
     assert.equal(
       await page.evaluate(() =>
@@ -89,7 +118,8 @@ const assert = require("node:assert/strict");
       fullPage: true,
     });
     await page.locator('[data-tree-family="cables"]').click();
-    await page.locator('[data-tree-tile="h07vu"]').click();
+    await page.locator('[data-tree-tile="cables"]').click();
+    await page.locator("#wire-type").selectOption("H07V-U");
     await page.locator("#wire-section").selectOption("1.5");
     if (!(await page.locator("#wireMoreFilters").evaluate((el) => el.open)))
       await page.locator("#wireMoreFilters>summary").click();
@@ -111,6 +141,74 @@ const assert = require("node:assert/strict");
         }),
       ),
       true,
+    );
+    await page.locator('[data-tree-family="cables"]').click();
+    await page.locator('[data-tree-tile="gaines"]').click();
+    await page.locator("#wire-type").selectOption("ICTA");
+    await page.locator("#wire-diameter").selectOption("20");
+    if (!(await page.locator("#wireMoreFilters").evaluate((el) => el.open)))
+      await page.locator("#wireMoreFilters>summary").click();
+    await page.locator("#wire-length").selectOption("100");
+    assert.ok((await page.locator(".catalog-product").count()) > 0);
+    assert.equal(
+      await page.evaluate(() =>
+        [...document.querySelectorAll("[data-pick]")].every((button) => {
+          const facts = wireProfile(
+            catalogItems().find(
+              (product) => product.id === button.dataset.pick,
+            ),
+          );
+          return (
+            facts.type === "ICTA" &&
+            facts.diameter === "20" &&
+            facts.length === "100"
+          );
+        }),
+      ),
+      true,
+    );
+    await page.screenshot({
+      path: "tmp/conduit-filters-mobile.png",
+      fullPage: true,
+    });
+    await page.locator('[data-tree-family="cables"]').click();
+    await page.locator('[data-tree-tile="cables"]').click();
+    await page.locator("#wire-type").selectOption("LiYCY");
+    if (!(await page.locator("#wireMoreFilters").evaluate((el) => el.open)))
+      await page.locator("#wireMoreFilters>summary").click();
+    await page.locator("#wire-shield").selectOption("shielded");
+    await page.locator("#wire-length").selectOption("50");
+    assert.ok((await page.locator(".catalog-product").count()) > 0);
+    assert.equal(
+      await page.evaluate(() =>
+        [...document.querySelectorAll("[data-pick]")].every((button) => {
+          const facts = wireProfile(
+            catalogItems().find(
+              (product) => product.id === button.dataset.pick,
+            ),
+          );
+          return (
+            facts.type === "LiYCY" &&
+            facts.shield === "shielded" &&
+            facts.length === "50"
+          );
+        }),
+      ),
+      true,
+    );
+    assert.deepEqual(
+      await page.evaluate(() => [
+        wireProfile({ label: "Câble RJ45 Cat6 F/UTP 2X4P - Box de 305m" })
+          .conductors,
+        wireProfile({ label: "Câble RJ45 Cat6 F/UTP 2X4P - Box de 305m" })
+          .section ?? null,
+        wireProfile({ label: "Câble RJ45 Cat6 F/UTP 2X4P - Box de 305m" })
+          .shield,
+        wireProfile({ label: "Câble non blindé U/UTP longueur 5m" }).shield,
+        wireProfile({ label: "Câble électrique R2V 3G2.5 mm²" }).shield ?? null,
+        wireProfile({ label: "Gaine ICTA D20 couronne de 100m" }).length,
+      ]),
+      ["16", null, "F/UTP", "U/UTP", null, "100"],
     );
     await page.locator("#resetFilters").click();
     await page.locator("#openKits").click();

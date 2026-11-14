@@ -521,7 +521,6 @@ function updateCatalogResults(browser) {
           );
         return (
           (exact ? 100 : 0) +
-          wireRelevance(product) +
           (favorites.has(productKey(product)) ? 10 : 0) +
           Math.min(
             8,
