@@ -163,3 +163,48 @@ function renderQuotes() {
   };
   results();
 }
+
+function deleteQuoteDialog(quote) {
+  const saved = db.quotes.find(
+    (item) => item.id === quote?.id && item.companyId === db.active,
+  );
+  if (!saved) return;
+  modal(
+    `<h2>Supprimer le devis ?</h2><p><strong>${esc(saved.number)}</strong> · ${esc(saved.client || "Sans client")}</p><p>${esc(saved.title)}</p><p>Ce devis sera retiré de votre liste. Les autres versions et la fiche client seront conservées.</p><div class="actions"><button id="cancelDeleteQuote" class="secondary">Annuler</button><button id="confirmDeleteQuote" class="danger">Supprimer le devis</button></div>`,
+  );
+  $("cancelDeleteQuote").onclick = closeModal;
+  $("cancelDeleteQuote").focus();
+  $("confirmDeleteQuote").onclick = () => {
+    if (saved.companyId !== db.active) return;
+    const previous = db.quotes;
+    db.quotes = previous.filter((item) => item.id !== saved.id);
+    if (
+      !save({
+        forceCheckpoint: true,
+        checkpointReason: "Avant suppression du devis " + saved.number,
+      })
+    ) {
+      db.quotes = previous;
+      return;
+    }
+    closeModal();
+    draft = null;
+    quoteCatalogState = null;
+    renderQuotes();
+    toast("Devis supprimé");
+  };
+}
+function mountQuoteDeletion() {
+  if (
+    !db.quotes.some(
+      (item) => item.id === draft?.id && item.companyId === db.active,
+    )
+  )
+    return;
+  const section = document.createElement("section");
+  section.className = "card";
+  section.innerHTML =
+    '<details><summary>Gestion du devis</summary><p>Retirer ce devis de votre liste.</p><button id="deleteQuote" class="danger">Supprimer le devis</button></details>';
+  $("main").append(section);
+  $("deleteQuote").onclick = () => deleteQuoteDialog(draft);
+}

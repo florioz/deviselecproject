@@ -346,6 +346,55 @@ const assert = require("node:assert/strict");
       fullPage: true,
     });
     await page.setViewportSize({ width: 390, height: 844 });
+    // Deletion requires explicit confirmation, preserves other versions and rolls back on storage failure.
+    const target = await page.evaluate(() => db.quotes[0].id);
+    await page.locator(`[data-open="${target}"]`).click();
+    await page
+      .locator("#deleteQuote")
+      .evaluate((button) => (button.closest("details").open = true));
+    await page.locator("#deleteQuote").click();
+    assert.ok(
+      (await page.locator("#dialog").textContent()).includes(
+        await page.evaluate(() => draft.number),
+      ),
+    );
+    await page.screenshot({path: "tmp/delete-quote-mobile.png", fullPage: true});
+    await page.locator("#cancelDeleteQuote").click();
+    assert.equal(await page.evaluate(() => db.quotes.length), 3);
+    await page.locator("#deleteQuote").click();
+    await page.evaluate(() => {
+      window.originalStorageSet = Storage.prototype.setItem;
+      Storage.prototype.setItem = () => {
+        throw Error("quota");
+      };
+    });
+    await page.locator("#confirmDeleteQuote").click();
+    assert.equal(await page.evaluate(() => db.quotes.length), 3);
+    await page.evaluate(() => {
+      Storage.prototype.setItem = window.originalStorageSet;
+      delete window.originalStorageSet;
+    });
+    await page.locator("#confirmDeleteQuote").click();
+    assert.equal(await page.locator(".quote-card").count(), 2);
+    assert.equal(
+      await page.evaluate(
+        (id) =>
+          JSON.parse(localStorage.getItem(KEY)).quotes.some(
+            (quote) => quote.id === id,
+          ),
+        target,
+      ),
+      false,
+    );
+    assert.equal(await page.evaluate(() => draft), null);
+    assert.ok(
+      await page.evaluate(async () => {
+        await checkpointQueue;
+        return (await recoverySnapshots()).some((snapshot) =>
+          snapshot.reason.startsWith("Avant suppression du devis"),
+        );
+      }),
+    );
     await page.evaluate(async () => {
       await checkpointQueue;
       for (let i = 0; i < 7; i++) {

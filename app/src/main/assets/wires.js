@@ -70,9 +70,7 @@ function renderWireFilters(browser) {
       conduit ? "Diamètre (mm)" : "Section (mm²)",
     ],
     ["conductors", "Nombre de conducteurs"],
-    ["earth", "Repérage terre"],
     ["color", "Couleur du fil / de la gaine"],
-    ["shield", "Blindage"],
     ["length", "Longueur du produit (m)"],
     ["pack", "Conditionnement"],
     [
@@ -101,7 +99,7 @@ function renderWireFilters(browser) {
         ].filter(Boolean),
       ),
     ].sort((a, b) => a.localeCompare(b, "fr", { numeric: true }));
-    if (!values.length && !["type", "shield", "length"].includes(key))
+    if (values.filter((value) => value !== "unknown").length < 2 && !current)
       return "";
     if (
       !values.includes("unknown") &&
@@ -110,7 +108,11 @@ function renderWireFilters(browser) {
       values.push("unknown");
     return `<label>${title}<select id="wire-${key}" data-wire-filter="${key}"><option value="">Tous</option>${values.map((value) => `<option value="${esc(value)}" ${value === current ? "selected" : ""}>${esc(value === "unknown" ? "Non renseigné" : wireChoiceLabel(key, value))}</option>`).join("")}</select></label>`;
   });
-  section.innerHTML = `<h3>Spécificités des câbles et conduits</h3><div class="grid">${controls.slice(0, 2).join("")}</div><details id="wireMoreFilters" ${moreOpen ? "open" : ""}><summary>Conducteurs, blindage, longueur et autres critères</summary><div class="grid filter-grid">${controls.slice(2).join("")}</div></details><button type="button" id="clearWireFilters" class="text-button">Effacer ces critères</button>`;
+  if (!controls.some(Boolean)) {
+    section.hidden = true;
+    return;
+  }
+  section.innerHTML = `<h3>Spécificités des câbles et conduits</h3><div class="grid">${controls.slice(0, 2).join("")}</div><details ${controls.slice(2).some(Boolean) ? "" : "hidden"} id="wireMoreFilters" ${moreOpen ? "open" : ""}><summary>Conducteurs, couleur, longueur et conditionnement</summary><div class="grid filter-grid">${controls.slice(2).join("")}</div></details><button type="button" id="clearWireFilters" class="text-button">Effacer ces critères</button>`;
   section.querySelectorAll("[data-wire-filter]").forEach(
     (input) =>
       (input.onchange = () => {

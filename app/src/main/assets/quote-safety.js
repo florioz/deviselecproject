@@ -184,4 +184,5 @@ function renderLockedQuote() {
   $("lockedPdf").onclick = () => printQuote(draft);
   $("lockedOrder").onclick = () => openPurchaseList(draft);
   $("newQuoteRevision").onclick = () => duplicateQuoteDialog(draft, true);
+  mountQuoteDeletion();
 }

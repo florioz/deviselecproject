@@ -33,6 +33,7 @@ function renderEditor() {
   if (stage === 0) renderMaterialStage();
   else if (stage === 1) renderClientStage();
   else renderQuoteReview();
+  mountQuoteDeletion();
 }
 
 function changeQuoteStage(stage) {

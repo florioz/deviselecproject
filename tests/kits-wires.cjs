@@ -92,7 +92,7 @@ const assert = require("node:assert/strict");
     await page.locator("#wire-section").selectOption("2.5");
     await page.locator("#wireMoreFilters>summary").click();
     await page.locator("#wire-conductors").selectOption("3");
-    await page.locator("#wire-earth").selectOption("G");
+    assert.equal(await page.locator("#wire-earth, #wire-shield").count(), 0);
     await page.locator("#wire-pack").selectOption("cut");
     assert.equal(
       await page.evaluate(() =>
@@ -106,7 +106,6 @@ const assert = require("node:assert/strict");
             facts.type === "R2V" &&
             facts.section === "2.5" &&
             facts.conductors === "3" &&
-            facts.earth === "G" &&
             facts.pack === "cut"
           );
         }),
@@ -144,7 +143,8 @@ const assert = require("node:assert/strict");
     );
     await page.locator('[data-tree-family="cables"]').click();
     await page.locator('[data-tree-tile="gaines"]').click();
-    await page.locator("#wire-type").selectOption("ICTA");
+    if (await page.locator("#wire-type").count())
+      await page.locator("#wire-type").selectOption("ICTA");
     await page.locator("#wire-diameter").selectOption("20");
     if (!(await page.locator("#wireMoreFilters").evaluate((el) => el.open)))
       await page.locator("#wireMoreFilters>summary").click();
@@ -176,7 +176,7 @@ const assert = require("node:assert/strict");
     await page.locator("#wire-type").selectOption("LiYCY");
     if (!(await page.locator("#wireMoreFilters").evaluate((el) => el.open)))
       await page.locator("#wireMoreFilters>summary").click();
-    await page.locator("#wire-shield").selectOption("shielded");
+    assert.equal(await page.locator("#wire-shield").count(), 0);
     await page.locator("#wire-length").selectOption("50");
     assert.ok((await page.locator(".catalog-product").count()) > 0);
     assert.equal(
@@ -313,7 +313,7 @@ const assert = require("node:assert/strict");
     );
     assert.deepEqual(errors, []);
     console.log(
-      "PASS: guided cable sections/counts/earth/colors/packaging, exact decimal parsing, one kit edit action, quick product confirmation, global installation time, naming on every save and saved-kit isolation.",
+      "PASS: useful cable sections/counts/colors/packaging without binary earth/shield filters, exact decimal parsing, one kit edit action, quick product confirmation, global installation time, naming on every save and saved-kit isolation.",
     );
   } finally {
     await browser.close();
