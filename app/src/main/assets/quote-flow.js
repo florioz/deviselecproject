@@ -75,7 +75,7 @@ function storeQuote(quiet = false) {
 function renderMaterialStage() {
   $("quoteStage").innerHTML =
     `<div class="material-heading row wrap"><h2>Choisir le matériel</h2>
-        <button id="addLine" class="text-button">+ Ligne libre</button></div>
+        <button id="addLine" class="text-button">+ Matériel ou prestation hors catalogue</button></div>
         <section class="card" id="catalogBrowser"></section>
         <div class="selection-bar"><button id="selectionButton" class="secondary"></button>
             <div><small>Total TTC</small><strong id="selectionTotal"></strong></div>
