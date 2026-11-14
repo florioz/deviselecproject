@@ -7,6 +7,11 @@ const port = 8765;
 const assets = path.join(__dirname, '..', 'app', 'src', 'main', 'assets');
 const routes = new Map([
     ['/', ['index.html', 'text/html']],
+    ['/kits.js', ['kits.js', 'application/javascript']],
+    ['/quote-dashboard.js', ['quote-dashboard.js', 'application/javascript']],
+    ['/backup.js', ['backup.js', 'application/javascript']],
+    ['/pdf.js', ['pdf.js', 'application/javascript']],
+    ['/base.css', ['base.css', 'text/css']],
     ['/app.js', ['app.js', 'application/javascript']],
     ['/catalog.js', ['catalog.js', 'application/javascript']],
     ['/form-helpers.js', ['form-helpers.js', 'application/javascript']],

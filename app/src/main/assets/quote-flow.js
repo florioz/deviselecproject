@@ -115,17 +115,14 @@ function quoteProductLine(product) {
 
 function quoteProductPrice(product) {
   const existing = quoteProductLine(product);
-  if (existing) return existing.price;
-  if (product.kind !== "material") return product.price ?? null;
-  return product.cost == null
-    ? null
-    : round(product.cost * (1 + company().markup / 100));
+  if (existing) return existing.needsPrice ? null : existing.price;
+  return productSalePrice(product);
 }
 
 function quickAddProduct(product, delta = 1) {
   const existing = quoteProductLine(product);
   if (existing) {
-    existing.qty = round(existing.qty + delta);
+    existing.qty = roundQuantity(existing.qty + delta);
     if (existing.qty <= 0) draft.lines.splice(draft.lines.indexOf(existing), 1);
   } else if (delta > 0) {
     if (product.kind === "material" && product.cost == null) {
@@ -181,7 +178,7 @@ function showQuoteSelection() {
     .forEach((button) => {
       button.onclick = () => {
         const index = Number(button.dataset.index);
-        draft.lines[index].qty = round(
+        draft.lines[index].qty = roundQuantity(
           draft.lines[index].qty + Number(button.dataset.lineDelta),
         );
         if (draft.lines[index].qty <= 0) draft.lines.splice(index, 1);
@@ -296,12 +293,7 @@ function renderQuoteReview() {
                 ${select(
                   "status",
                   "Suivi",
-                  [
-                    ["Brouillon", "Brouillon"],
-                    ["Envoyé", "Envoyé"],
-                    ["Accepté", "Accepté"],
-                    ["Refusé", "Refusé"],
-                  ],
+                  QUOTE_STATUSES.map((status) => [status, status]),
                   draft.status,
                 )}</details>
         </section><section id="summary" class="card total"></section><div class="actions">

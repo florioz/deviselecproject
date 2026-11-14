@@ -98,6 +98,9 @@ const assert = require("node:assert/strict");
     await page.locator("#f-kitName").fill("Prise cuisine complète");
     assert.equal(await page.locator('[data-kit-field="vat"]').count(), 0);
     await page.locator("#kitAddMaterial").click();
+    await page.evaluate(() => initializeCatalog());
+    assert.equal(await page.locator("#catalogSearch").count(), 1);
+    assert.equal(await page.locator("#kitCatalogue #catalogSearch").count(), 1);
     assert.ok((await page.locator(".equipment-tile").count()) > 0);
     await page.locator("#catalogSearch").fill("600335");
     await page
@@ -459,6 +462,37 @@ const assert = require("node:assert/strict");
       false,
     );
     assert.equal(await page.evaluate(() => draft.lines.at(-1).price), 12.5);
+    // Labor added after the final tax choice inherits that choice, including fractional hours.
+    await page.locator("#addReviewLine").click();
+    await page.locator("#hourlyLabor").click();
+    await page.locator("#f-qty").fill("0.125");
+    await page
+      .getByRole("button", { name: "Augmenter la quantité", exact: true })
+      .click();
+    assert.equal(await page.locator("#f-qty").inputValue(), "1.125");
+    await page.locator('#lineForm button[type="submit"]').click();
+    assert.equal(await page.evaluate(() => draft.lines.at(-1).vat), 10);
+    assert.equal(await page.evaluate(() => draft.lines.at(-1).qty), 1.125);
+    assert.deepEqual(
+      await page.evaluate(() => {
+        const result = repricedLines(
+          [
+            {
+              kind: "material",
+              catalogId: "pending",
+              unit: "u",
+              price: 0,
+              qty: 1,
+              markup: 30,
+              needsPrice: true,
+            },
+          ],
+          [{ id: "pending", kind: "material", unit: "u", cost: 10 }],
+        );
+        return [result.lines[0].price, result.lines[0].needsPrice];
+      }),
+      [13, false],
+    );
     await page.screenshot({
       path: "tmp/productivity-pricing-mobile.png",
       fullPage: true,

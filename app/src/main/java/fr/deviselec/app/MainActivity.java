@@ -75,6 +75,11 @@ public class MainActivity extends Activity {
                     String mime;
                     switch (path) {
                         case "/": asset = "index.html"; mime = "text/html"; break;
+                        case "/kits.js": asset = "kits.js"; mime = "application/javascript"; break;
+                        case "/quote-dashboard.js": asset = "quote-dashboard.js"; mime = "application/javascript"; break;
+                        case "/backup.js": asset = "backup.js"; mime = "application/javascript"; break;
+                        case "/pdf.js": asset = "pdf.js"; mime = "application/javascript"; break;
+                        case "/base.css": asset = "base.css"; mime = "text/css"; break;
                         case "/app.js": asset = "app.js"; mime = "application/javascript"; break;
                         case "/catalog.js": asset = "catalog.js"; mime = "application/javascript"; break;
                         case "/form-helpers.js": asset = "form-helpers.js"; mime = "application/javascript"; break;
@@ -86,7 +91,6 @@ public class MainActivity extends Activity {
                         case "/quote-flow.js": asset = "quote-flow.js"; mime = "application/javascript"; break;
                         case "/flow.css": asset = "flow.css"; mime = "text/css"; break;
                         case "/equipment-images.json": asset = "equipment-images.json"; mime = "application/json"; break;
-                        case "/catalog-123elec.json": asset = "catalog-123elec.json"; mime = "application/json"; break;
                         default: return new WebResourceResponse("text/plain", "UTF-8", null);
                     }
                     try { return new WebResourceResponse(mime, "UTF-8", getAssets().open(asset)); }

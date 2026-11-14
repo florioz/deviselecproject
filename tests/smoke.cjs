@@ -12,7 +12,7 @@ const path = require('node:path');
     const server = http.createServer((request, response) => {
         const name = new URL(request.url, 'http://localhost').pathname.slice(1) || 'index.html';
         if (name === 'catalog-status.json') { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify(updateState)); return; }
-        const allowed = ['index.html', 'flow.css', 'app.js', 'catalog.js', 'form-helpers.js', 'clients.js', 'equipment.js', 'comparison.js', 'productivity.js', 'equipment-specs.json', 'quote-flow.js', 'catalog-123elec.json', 'equipment-images.json'];
+        const allowed = ['base.css', 'pdf.js', 'backup.js', 'quote-dashboard.js', 'kits.js', 'index.html', 'flow.css', 'app.js', 'catalog.js', 'form-helpers.js', 'clients.js', 'equipment.js', 'comparison.js', 'productivity.js', 'equipment-specs.json', 'quote-flow.js', 'catalog-123elec.json', 'equipment-images.json'];
         if (!allowed.includes(name) && !/^equipment-images\/[a-z0-9-]+\.(jpg|jpeg|png|webp)$/.test(name)) { response.writeHead(404).end(); return; }
         const mime = name.endsWith('.js') ? 'application/javascript' : name.endsWith('.json') ? 'application/json' : name.endsWith('.css') ? 'text/css' : name.endsWith('.html') ? 'text/html' : 'image/jpeg';
         response.setHeader('Content-Type', mime);
@@ -223,6 +223,12 @@ const path = require('node:path');
         assert.equal(await legacy.evaluate(() => db.quotes[0].lines[0].price), 8.5);
         assert.equal(await legacy.evaluate(() => db.quotes[0].clientAddress), 'Adresse historique');
         await legacy.close();
+        const withoutPhotos = await browser.newPage();
+        await withoutPhotos.route('**/equipment-images.json', route => route.abort());
+        await withoutPhotos.goto(address); await withoutPhotos.waitForFunction(() => !catalogLoading);
+        assert.equal(await withoutPhotos.evaluate(() => catalogError), false);
+        assert.ok(await withoutPhotos.evaluate(() => supplierCatalog.products.length > 6000));
+        await withoutPhotos.close();
         console.log('PASS: material-first wizard, visual tree, quick quantities, independent clients, migration, pricing snapshots, offline search, logo/PDF and supplier update controls.');
     } finally { await browser.close(); server.close(); }
 })().catch(error => { console.error(error); process.exit(1); });

@@ -12,7 +12,7 @@ Le sélecteur de logo et l’aperçu des devis sont accessibles dans le navigate
 
 ### Application Android
 
-Le fichier `livraison/Deviselec-0.6.1-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
+Le fichier `livraison/Deviselec-0.6.2-debug.apk` est une version de test signée avec la clé de développement Android. Le copier sur le téléphone, l’ouvrir et autoriser cette source d’installation lorsque Android le demande. Installer la mise à jour par-dessus la version précédente permet de conserver les données locales.
 
 1. Créer un profil dans **Entreprise** : identité, adresse, logo, tarifs, TVA et conditions.
 2. Dans **Clients**, enregistrer les coordonnées des clients de l’entreprise. Les clients des anciens devis sont repris automatiquement dans ce carnet.
@@ -95,6 +95,8 @@ La version debug convient aux essais. Avant un usage durable, prévoir une clé 
 ## Développement et vérification
 
 Coque Android Java et interface HTML/CSS/JavaScript embarquée dans WebView. L’actualisation utilise HTTPS vers `www.123elec.com`, avec deux téléchargements simultanés et une écriture atomique de la base. La permission Internet est utilisée pour cette fonctionnalité. Impression par le service Android et export/import avec le sélecteur de documents système. Aucun serveur nécessaire.
+
+Les modules `kits.js`, `quote-dashboard.js`, `backup.js` et `pdf.js` regroupent respectivement les kits, le suivi et la duplication des devis, la restauration, et l’impression. `productivity.js` conserve les pièces, les réglages de prix/TVA et les forfaits. `base.css` contient les styles communs et `flow.css` les écrans métier et leurs adaptations mobiles. L’ordre de chargement est défini dans `index.html`.
 
 Java 17 ou 21 et SDK Android 36 requis. Définir `ANDROID_HOME` ou `sdk.dir` dans `local.properties`, puis :
 

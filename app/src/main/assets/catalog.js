@@ -72,8 +72,12 @@ async function initializeCatalog() {
     if (!response.ok) throw new Error("Catalogue indisponible");
     const data = await response.json();
     if (!Array.isArray(data.products)) throw new Error("Catalogue invalide");
-    const imageResponse = await fetch("equipment-images.json");
-    if (imageResponse.ok) productImages = await imageResponse.json();
+    try {
+      const imageResponse = await fetch("equipment-images.json");
+      if (imageResponse.ok) productImages = await imageResponse.json();
+    } catch (imageError) {
+      // Photos are optional. Keep the catalog and any image index already loaded.
+    }
     try {
       const specsResponse = await fetch("equipment-specs.json");
       if (specsResponse.ok) technicalProfiles = await specsResponse.json();
@@ -90,7 +94,7 @@ async function initializeCatalog() {
   } finally {
     catalogLoading = false;
     if (tab === "catalog" && !$("dialog").open) renderCatalog();
-    if ($("catalogBrowser")) renderCatalogBrowser(true);
+    if ($("catalogBrowser") && !kitSession) renderCatalogBrowser(true);
   }
 }
 
@@ -139,6 +143,12 @@ function favoriteIds() {
 
 function productKey(product) {
   return product.sourceId || product.id;
+}
+
+function productSalePrice(product, markup = company()?.markup ?? 0) {
+  if (product.kind !== "material") return product.price ?? null;
+  if (product.cost == null) return null;
+  return round(product.cost * (1 + num(markup) / 100));
 }
 
 function toggleFavorite(product) {
@@ -208,18 +218,6 @@ function renderCatalog() {
     ? "Chargement du catalogue embarqué…"
     : `${supplierCatalog.total.toLocaleString("fr-FR")} références 123elec · ${supplierCatalog.priced.toLocaleString("fr-FR")} prix renseignés · Catalogue du ${date}. Chaque prix conserve sa date de relevé. Achat HT indicatif, hors livraison.`;
   mountCatalogBrowser($("catalogPage"), false);
-}
-
-function pickCatalog() {
-  if (draft) {
-    draft.stage = 0;
-    renderEditor();
-    return;
-  }
-  modal(`<h2>Choisir le matériel ou la prestation</h2>
-        <div id="catalogBrowser"></div>
-        <div class="actions"><button type="button" class="secondary" onclick="closeModal()">Fermer</button></div>`);
-  mountCatalogBrowser($("catalogBrowser"), true);
 }
 
 function filterOptions(values, label) {

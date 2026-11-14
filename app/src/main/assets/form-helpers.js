@@ -204,7 +204,7 @@ function attachLineHelpers(line) {
     plus.setAttribute('aria-label', 'Augmenter la quantité');
     stepper.append(minus, quantity, plus);
     const changeQuantity = delta => {
-        quantity.value = Math.min(1000000, Math.max(0.001, round(num(quantity.value) + delta)));
+        quantity.value = Math.min(1000000, Math.max(0.001, roundQuantity(num(quantity.value) + delta)));
         notifyField(quantity);
     };
     minus.onclick = () => changeQuantity(-1);
